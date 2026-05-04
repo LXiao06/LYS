@@ -1,0 +1,16 @@
+Package: LYS
+Type: Package
+Title: Label Your Song
+Version: 0.0.0.9000
+Authors@R:
+    person("Lei", "Xiao", email = "Leixiao2006@gmail.com", role = c("aut", "cre"))
+Description: Tools for organizing zebra finch recordings, assigning recording
+    sessions, and preparing template-based labeling workflows for song bouts,
+    innate calls, and pupil beg calls.
+License: GPL (>= 3)
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Depends:
+    R (>= 4.1.0)
