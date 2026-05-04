@@ -3,6 +3,45 @@ collapse_unique <- function(x) {
   paste(x, collapse = ", ")
 }
 
+summarize_creation_items <- function(x, max_items = 8L) {
+  if (!length(x)) {
+    return("none")
+  }
+
+  x <- as.character(x)
+  if (length(x) <= max_items) {
+    return(paste(x, collapse = "; "))
+  }
+
+  shown <- paste(utils::head(x, max_items), collapse = "; ")
+  sprintf("%s; ... +%d more", shown, length(x) - max_items)
+}
+
+print_lys_creation_summary <- function(x) {
+  day_items <- sprintf(
+    "%s (%d files, %d sessions)",
+    x$day_summary$recording_date,
+    x$day_summary$n_files,
+    x$day_summary$n_sessions
+  )
+  session_items <- sprintf(
+    "%s [%d files]",
+    x$session_summary$session_label,
+    x$session_summary$n_files
+  )
+
+  message(
+    sprintf(
+      "Created LYS object: %d files across %d day(s) and %d session(s).",
+      nrow(x$metadata),
+      nrow(x$day_summary),
+      nrow(x$session_summary)
+    )
+  )
+  message("Days: ", summarize_creation_items(day_items))
+  message("Sessions: ", summarize_creation_items(session_items))
+}
+
 build_day_summary <- function(metadata) {
   days <- unique(metadata$recording_day)
 
@@ -86,6 +125,7 @@ new_lys <- function(metadata,
                     base_path,
                     session_gap_hours,
                     templates = new_template_registry(),
+                    vocalizations = data.frame(),
                     misc = list(),
                     version = "0.0.0.9000") {
   structure(
@@ -95,6 +135,7 @@ new_lys <- function(metadata,
       session_summary = build_session_summary(metadata),
       base_path = base_path,
       templates = templates,
+      vocalizations = vocalizations,
       misc = misc,
       version = version,
       settings = list(session_gap_hours = session_gap_hours)
@@ -121,11 +162,12 @@ create_lys_object <- function(base_path,
     session_gap_hours = session_gap_hours
   )
 
-  new_lys(
+  lys <- new_lys(
     metadata = metadata,
     base_path = normalizePath(base_path, mustWork = TRUE),
     session_gap_hours = session_gap_hours,
     templates = new_template_registry(template_types = template_types),
+    vocalizations = data.frame(),
     misc = list(
       created_at = Sys.time(),
       creation_args = list(
@@ -137,6 +179,9 @@ create_lys_object <- function(base_path,
       )
     )
   )
+
+  print_lys_creation_summary(lys)
+  lys
 }
 
 register_template <- function(lys,
@@ -206,6 +251,7 @@ print.lys <- function(x, ...) {
   cat("Recording days:", nrow(x$day_summary), "\n")
   cat("Sessions:", nrow(x$session_summary), "\n")
   cat("Files:", nrow(x$metadata), "\n")
+  cat("Detected vocalizations:", nrow(x$vocalizations), "\n")
   cat(
     "Template types:",
     paste(x$templates$allowed_types, collapse = ", "),
@@ -220,5 +266,15 @@ summary.lys <- function(object, ...) {
   print(object$day_summary, row.names = FALSE)
   cat("\nSession summary\n")
   print(object$session_summary, row.names = FALSE)
+  if (nrow(object$vocalizations) > 0) {
+    cat("\nVocalization summary\n")
+    vocal_summary <- stats::aggregate(
+      filename ~ session_label + recording_date,
+      data = object$vocalizations,
+      FUN = length
+    )
+    names(vocal_summary)[names(vocal_summary) == "filename"] <- "n_vocalizations"
+    print(vocal_summary, row.names = FALSE)
+  }
   invisible(object)
 }

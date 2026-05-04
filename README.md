@@ -21,6 +21,13 @@ lys <- create_lys_object(
 
 summary(lys)
 
+lys <- detect_vocalization(
+  lys,
+  rms_threshold = 0.1,
+  min_duration = 0.5,
+  cores = 4
+)
+
 lys <- register_template(
   lys,
   template_name = "bird_song_bout_a",
@@ -46,3 +53,13 @@ This means `create_lys_object()` immediately stores:
 
 Because SAP2011 filenames encode WAV start times, session summaries report the
 first and last recording starts observed within each session.
+
+## Vocalization detection
+
+`detect_vocalization()` is an S3 generic with two current entry points:
+
+- `detect_vocalization("/path/to/file.wav")` returns a data frame of detected vocalizations
+- `detect_vocalization(lys_object)` scans every WAV in the object and stores results in `lys$vocalizations`
+
+The `lys` method parallelizes by `session_id`, so each worker processes one
+recording session at a time instead of grouping by day.
