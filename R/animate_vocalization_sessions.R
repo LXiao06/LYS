@@ -282,6 +282,7 @@ validate_sequence_rules <- function(sequence_rules) {
   empty <- data.frame(
     preceding_label = character(),
     following_label = character(),
+    min_gap_sec     = numeric(),
     max_gap_sec     = numeric(),
     annotation      = character(),
     color           = character(),
@@ -309,6 +310,11 @@ validate_sequence_rules <- function(sequence_rules) {
   sequence_rules$following_label <- as.character(sequence_rules$following_label)
   sequence_rules$max_gap_sec     <- as.numeric(sequence_rules$max_gap_sec)
   sequence_rules$annotation      <- as.character(sequence_rules$annotation)
+
+  if (!"min_gap_sec" %in% names(sequence_rules)) {
+    sequence_rules$min_gap_sec <- 0
+  }
+  sequence_rules$min_gap_sec <- as.numeric(sequence_rules$min_gap_sec)
 
   if (!"color" %in% names(sequence_rules)) {
     sequence_rules$color <- "#D32F2F"
@@ -351,55 +357,73 @@ detect_sequence_pairs <- function(mapped, label_col, seq_rules) {
 
   pair_list <- list()
   sessions  <- unique(mapped$session_label)
+  
+  # Copy labels to track state sequentially
+  mapped$annotated_label <- as.character(mapped[[label_col]])
 
   for (sess in sessions) {
-    sess_data <- mapped[mapped$session_label == sess, , drop = FALSE]
-    sess_data <- sess_data[order(sess_data$session_relative_start), , drop = FALSE]
+    idx <- which(mapped$session_label == sess)
+    idx <- idx[order(mapped$session_relative_start[idx])]
 
-    for (ri in seq_len(nrow(seq_rules))) {
-      pre_label  <- seq_rules$preceding_label[ri]
-      fol_label  <- seq_rules$following_label[ri]
-      max_gap    <- seq_rules$max_gap_sec[ri]
-      annot      <- seq_rules$annotation[ri]
-      annot_col  <- seq_rules$color[ri]
-      do_arrow   <- seq_rules$show_arrow[ri]
+    for (i in seq_along(idx)) {
+      curr_idx <- idx[i]
+      curr_label <- mapped$annotated_label[curr_idx]
 
-      pre_rows <- which(sess_data[[label_col]] == pre_label)
-      fol_rows <- which(sess_data[[label_col]] == fol_label)
+      app_rules <- seq_rules[seq_rules$following_label == curr_label, , drop = FALSE]
+      if (nrow(app_rules) == 0) next
 
-      if (!length(pre_rows) || !length(fol_rows)) next
+      for (r in seq_len(nrow(app_rules))) {
+        rule <- app_rules[r, ]
 
-      for (pi in pre_rows) {
-        pre_end <- sess_data$session_relative_end[pi]
+        if (is.na(rule$preceding_label)) {
+          mapped$annotated_label[curr_idx] <- rule$annotation
+          pair_list[[length(pair_list) + 1L]] <- data.frame(
+            session_label   = sess,
+            preceding_end   = NA_real_,
+            following_start = mapped$session_relative_start[curr_idx],
+            following_end   = mapped$session_relative_end[curr_idx],
+            annotation      = rule$annotation,
+            color           = rule$color,
+            show_arrow      = FALSE,
+            stringsAsFactors = FALSE
+          )
+          break
+        }
 
-        # Nearest following event within gap
-        candidates <- fol_rows[
-          sess_data$session_relative_start[fol_rows] >= pre_end &
-          sess_data$session_relative_start[fol_rows] <= pre_end + max_gap
-        ]
-        if (!length(candidates)) next
+        prev_indices <- idx[seq_len(i - 1)]
+        prec_match_positions <- which(mapped$annotated_label[prev_indices] == rule$preceding_label)
 
-        fi <- candidates[1]
+        if (length(prec_match_positions) == 0) {
+          gap <- Inf
+          actual_prec_idx <- NA
+        } else {
+          last_match_pos <- max(prec_match_positions)
+          actual_prec_idx <- prev_indices[last_match_pos]
+          gap <- mapped$session_relative_start[curr_idx] - mapped$session_relative_end[actual_prec_idx]
+        }
 
-        # No intervening preceding_label event
-        gap_start <- pre_end
-        gap_end   <- sess_data$session_relative_start[fi]
-        intervening <- pre_rows[
-          sess_data$session_relative_start[pre_rows] > gap_start &
-          sess_data$session_relative_start[pre_rows] < gap_end
-        ]
-        if (length(intervening)) next
+        min_g <- ifelse(is.na(rule$min_gap_sec), 0, rule$min_gap_sec)
+        max_g <- ifelse(is.na(rule$max_gap_sec), Inf, rule$max_gap_sec)
 
-        pair_list[[length(pair_list) + 1L]] <- data.frame(
-          session_label   = sess,
-          preceding_end   = pre_end,
-          following_start = gap_end,
-          following_end   = sess_data$session_relative_end[fi],
-          annotation      = annot,
-          color           = annot_col,
-          show_arrow      = do_arrow,
-          stringsAsFactors = FALSE
-        )
+        if (gap >= min_g && gap <= max_g) {
+          mapped$annotated_label[curr_idx] <- rule$annotation
+          
+          show_arrow <- rule$show_arrow
+          if (is.infinite(gap)) show_arrow <- FALSE
+          prec_end_val <- if (is.na(actual_prec_idx)) NA_real_ else mapped$session_relative_end[actual_prec_idx]
+          
+          pair_list[[length(pair_list) + 1L]] <- data.frame(
+            session_label   = sess,
+            preceding_end   = prec_end_val,
+            following_start = mapped$session_relative_start[curr_idx],
+            following_end   = mapped$session_relative_end[curr_idx],
+            annotation      = rule$annotation,
+            color           = rule$color,
+            show_arrow      = show_arrow,
+            stringsAsFactors = FALSE
+          )
+          break
+        }
       }
     }
   }
@@ -544,6 +568,7 @@ draw_animation_frame <- function(mapped,
         pre_end_local <- arrow_pairs$preceding_end[fi]   - w_left
         fol_sta_local <- arrow_pairs$following_start[fi] - w_left
 
+        if (is.na(pre_end_local)) next
         if (pre_end_local > window_sec || fol_sta_local < 0) next
         if (pre_end_local < 0 && fol_sta_local > window_sec) next
 
