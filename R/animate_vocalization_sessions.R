@@ -187,12 +187,14 @@ animate_vocalization_sessions <- function(lys,
   if (verbose && nrow(seq_pairs)) {
     for (ri in seq_len(nrow(seq_rules))) {
       n_found <- sum(seq_pairs$annotation == seq_rules$annotation[ri])
+      max_gap <- seq_rules$max_gap_sec[ri]
+      gap_str <- if (is.infinite(max_gap)) "Inf" else as.character(as.integer(max_gap))
       message(sprintf(
-        "  Rule '%s' (%s -> %s within %ds): %d event(s) reclassified.",
+        "  Rule '%s' (%s -> %s within %ss): %d event(s) reclassified.",
         seq_rules$annotation[ri],
         seq_rules$preceding_label[ri],
         seq_rules$following_label[ri],
-        as.integer(seq_rules$max_gap_sec[ri]),
+        gap_str,
         n_found
       ))
     }
