@@ -60,6 +60,12 @@ parallel_apply <- function(indices, FUN, cores, use_preschedule = FALSE, cl = NU
   result
 }
 
+#' Look up metadata row indices for WAV files in a LYS object
+#' @param lys A \\code{lys} object.
+#' @param wav_files Character vector of filenames, relative paths, or full
+#'   paths to match against \\code{lys$metadata}.
+#' @return An integer vector of matching row indices.
+#' @export
 get_wav_indices <- function(lys, wav_files) {
   if (!inherits(lys, "lys")) {
     stop("Input 'lys' must be a LYS object.", call. = FALSE)

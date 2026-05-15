@@ -64,6 +64,11 @@ format_datetime_fields <- function(recording_start) {
   )
 }
 
+#' Parse a SAP-format filename into metadata fields
+#' @param filename Character. Path or filename to parse.
+#' @param tz Character. Timezone string. Default \code{"UTC"}.
+#' @return A named list of metadata fields.
+#' @export
 parse_sap_filename <- function(filename, tz = "UTC") {
   base <- basename(filename)
   pattern <- "^(.+?)_(\\d+(?:\\.\\d+)?)_(\\d{1,2})_(\\d{1,2})_(\\d{1,2})_(\\d{1,2})_(\\d{1,2})\\.[Ww][Aa][Vv]$"
@@ -132,6 +137,13 @@ parse_sap_filename <- function(filename, tz = "UTC") {
   )
 }
 
+#' Create a LYS metadata table from a directory of WAV files
+#' @param base_path Character. Root directory containing WAV files.
+#' @param recursive Logical. Search subdirectories. Default \code{TRUE}.
+#' @param exclude_dirs Character vector of subdirectory names to skip.
+#' @param tz Character. Timezone string. Default \code{"UTC"}.
+#' @return A data frame of file metadata.
+#' @export
 create_lys_metadata <- function(base_path,
                                 recursive = TRUE,
                                 exclude_dirs = c("templates", "plots", "temp_plots"),
@@ -187,6 +199,12 @@ create_lys_metadata <- function(base_path,
   metadata
 }
 
+#' Assign recording sessions to a LYS metadata table
+#' @param metadata Data frame as returned by \code{create_lys_metadata()}.
+#' @param session_gap_hours Numeric. Minimum gap in hours between sessions.
+#'   Default \code{1}.
+#' @return The metadata data frame with session columns added.
+#' @export
 assign_recording_sessions <- function(metadata, session_gap_hours = 1) {
   if (!is.data.frame(metadata)) {
     stop("metadata must be a data frame.", call. = FALSE)

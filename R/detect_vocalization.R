@@ -189,10 +189,17 @@ plot_vocalization_detection <- function(wave,
   graphics::mtext("TIME", side = 1, outer = TRUE, line = 1.1, col = "white")
 }
 
+#' Detect vocalizations in audio
+#' @param x A \\code{lys} object or a path to a WAV file.
+#' @param ... Additional arguments passed to the method.
+#' @return For \\code{lys} input, the updated object; for a WAV path, a
+#'   data frame of detected vocalization bouts.
+#' @export
 detect_vocalization <- function(x, ...) {
   UseMethod("detect_vocalization")
 }
 
+#' @export
 detect_vocalization.default <- function(x,
                                         wl = 1024,
                                         ovlp = 50,
@@ -482,6 +489,7 @@ resolve_lys_output_dir <- function(base_path, output_dir = NULL) {
   normalizePath(parent_dir, mustWork = TRUE)
 }
 
+#' @export
 detect_vocalization.lys <- function(x,
                                     session = NULL,
 	                                   indices = NULL,

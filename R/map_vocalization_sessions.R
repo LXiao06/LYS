@@ -1,3 +1,22 @@
+#' Map labeled vocalizations across recording sessions
+#' @param lys A \code{lys} object with labels in \code{lys$vocalizations}.
+#' @param labels Character vector of labels to include. \code{NULL} uses all.
+#' @param label_col Character. Column in \code{lys$vocalizations} holding labels.
+#'   Default \code{"vocalization_label"}.
+#' @param drop_labels Character vector of label values to exclude.
+#' @param session Session ID(s) or label(s) to restrict to. \code{NULL} = all.
+#' @param plot Logical. Draw the map plot. Default \code{TRUE}.
+#' @param save_plot Logical. Save the map plot to disk. Default \code{FALSE}.
+#' @param output_dir Character. Output directory; \code{NULL} uses default.
+#' @param plot_file Character. Plot filename.
+#' @param map_file Character. CSV filename.
+#' @param colors Named character vector mapping labels to colors.
+#' @param scale_bar_seconds Numeric. Scale-bar length in seconds; \code{NULL}
+#'   chooses automatically.
+#' @param tz Character. Timezone. Default \code{"UTC"}.
+#' @param verbose Logical. Print progress messages. Default \code{TRUE}.
+#' @return The updated \code{lys} object (invisibly).
+#' @export
 map_vocalization_sessions <- function(lys,
                                       labels = NULL,
                                       label_col = "vocalization_label",

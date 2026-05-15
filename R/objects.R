@@ -149,6 +149,16 @@ new_lys <- function(metadata,
   )
 }
 
+#' Create a LYS object from a directory of WAV files
+#' @param base_path Character. Root directory containing WAV files.
+#' @param recursive Logical. Search subdirectories. Default \code{TRUE}.
+#' @param exclude_dirs Character vector of subdirectory names to skip.
+#' @param session_gap_hours Numeric. Gap in hours that defines a new session.
+#'   Default \code{1}.
+#' @param template_types Character vector of allowed template type labels.
+#' @param tz Character. Timezone string. Default \code{"UTC"}.
+#' @return A \code{lys} object.
+#' @export
 create_lys_object <- function(base_path,
                               recursive = TRUE,
                               exclude_dirs = c("templates", "plots", "temp_plots"),
@@ -189,6 +199,17 @@ create_lys_object <- function(base_path,
   lys
 }
 
+#' Manually register a template in a LYS object
+#' @param lys A \code{lys} object.
+#' @param template_name Character. Unique name for the template.
+#' @param template_type Character. One of the allowed template types.
+#' @param wav_path Character. Path to the source WAV file.
+#' @param start_time Numeric. Template start time in seconds.
+#' @param end_time Numeric. Template end time in seconds.
+#' @param detection_threshold Numeric. Score cut-off \eqn{[0,1]}.
+#' @param notes Character. Optional free-text notes.
+#' @return The updated \code{lys} object.
+#' @export
 register_template <- function(lys,
                               template_name,
                               template_type,
@@ -252,6 +273,7 @@ register_template <- function(lys,
   lys
 }
 
+#' @export
 print.lys <- function(x, ...) {
   cat("LYS Object\n")
   cat("==========\n")
@@ -268,6 +290,7 @@ print.lys <- function(x, ...) {
   invisible(x)
 }
 
+#' @export
 summary.lys <- function(object, ...) {
   print(object)
   cat("\nDay summary\n")

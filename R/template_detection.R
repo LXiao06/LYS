@@ -15,6 +15,12 @@ check_template_dependencies <- function() {
   }
 }
 
+#' Create a vocalization template
+#' @param x A \\code{lys} object or a path to a WAV file.
+#' @param ... Additional arguments passed to the method.
+#' @return For \\code{lys} input, the updated object; for a WAV path, a
+#'   \\code{TemplateList} object.
+#' @export
 create_template <- function(x, ...) {
   UseMethod("create_template")
 }
@@ -54,6 +60,7 @@ ensure_template_registry_slots <- function(x) {
   x
 }
 
+#' @export
 create_template.default <- function(x,
                                     template_name,
                                     start_time = NULL,
@@ -127,6 +134,7 @@ create_template.default <- function(x,
   template
 }
 
+#' @export
 create_template.lys <- function(x,
                                 template_name,
                                 template_type,
@@ -218,6 +226,12 @@ create_template.lys <- function(x,
   invisible(x)
 }
 
+#' Run template-based vocalization detection
+#' @param x A \\code{lys} object or a path to a WAV file.
+#' @param ... Additional arguments passed to the method.
+#' @return For \\code{lys} input, the updated object; for a WAV path, a
+#'   data frame of detections.
+#' @export
 detect_template <- function(x, ...) {
   UseMethod("detect_template")
 }
@@ -263,6 +277,7 @@ filter_template_peaks <- function(peaks, proximity_window = NULL) {
   peaks
 }
 
+#' @export
 detect_template.default <- function(x,
                                     template,
                                     cor.method = "pearson",
@@ -397,6 +412,7 @@ set_template_thresholds <- function(template, thresholds) {
   template
 }
 
+#' @export
 detect_template.lys <- function(x,
                                 template_name = NULL,
                                 session = NULL,

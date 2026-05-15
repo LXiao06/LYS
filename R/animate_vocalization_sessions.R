@@ -37,6 +37,16 @@
 #'   Default \code{10}.
 #' @param step_seconds Numeric. How far the window advances per animation frame
 #'   (in seconds).  Default \code{30}.
+#' @param max_session_sec Numeric or \code{NULL}. Maximum total duration (in
+#'   seconds) shown for every session.  All sessions are clipped to this value
+#'   so they end at the same point in the animation.
+#'   \itemize{
+#'     \item \code{NULL} (default) — use the duration of the shortest session,
+#'           so every session reaches its natural end at the same frame.
+#'     \item A positive number — clip every session at that many seconds
+#'           (e.g. \code{3600} for 1 hour). Events that start after the cap are
+#'           excluded; events that overlap the cap boundary are shown truncated.
+#'   }
 #' @param colors Named character vector mapping \emph{display} labels to colors.
 #'   Include both base labels (e.g. \code{"SongBout"}) and annotation labels
 #'   (e.g. \code{"FD"}) if you want to override auto-assigned colors.
@@ -107,6 +117,7 @@ animate_vocalization_sessions <- function(lys,
                                           sequence_rules = NULL,
                                           window_duration_min = 10,
                                           step_seconds = 30,
+                                          max_session_sec = NULL,
                                           colors = NULL,
                                           fps = 10,
                                           output_dir = NULL,
@@ -202,10 +213,41 @@ animate_vocalization_sessions <- function(lys,
 
   # --- Compute per-session max time ---
   session_max <- tapply(mapped$session_relative_end, mapped$session_label, max)
-  window_sec <- window_duration_min * 60
-  global_max <- max(session_max, na.rm = TRUE)
-  n_frames <- max(1L, ceiling((global_max - window_sec) / step_seconds) + 1L)
-  n_frames <- n_frames + 1L
+  window_sec  <- window_duration_min * 60
+
+  # --- Apply session duration cap ---
+  # Default: shortest session so all sessions end at the same frame.
+  # User can override with an explicit number of seconds.
+  cap_sec <- if (is.null(max_session_sec)) {
+    min(session_max, na.rm = TRUE)
+  } else {
+    as.numeric(max_session_sec)
+  }
+
+  if (verbose) {
+    message(sprintf(
+      "Session duration cap: %.0f s (%.1f min) [%s].",
+      cap_sec, cap_sec / 60,
+      if (is.null(max_session_sec)) "shortest session" else "user-specified"
+    ))
+  }
+
+  # Clip session_max so scrolling stops at the cap for every session
+  session_max <- pmin(session_max, cap_sec)
+
+  # Drop events that start at or after the cap, clip those that overlap it
+  mapped <- mapped[mapped$session_relative_start < cap_sec, , drop = FALSE]
+  mapped$session_relative_end <- pmin(mapped$session_relative_end, cap_sec)
+
+  # Also clip seq_pairs (following events that start before the cap are kept)
+  if (nrow(seq_pairs)) {
+    seq_pairs <- seq_pairs[seq_pairs$following_start < cap_sec, , drop = FALSE]
+    seq_pairs$following_end <- pmin(seq_pairs$following_end, cap_sec)
+  }
+
+  global_max <- cap_sec
+  n_frames   <- max(1L, ceiling((global_max - window_sec) / step_seconds) + 1L)
+  n_frames   <- n_frames + 1L
 
   if (verbose) {
     message(sprintf(
