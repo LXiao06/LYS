@@ -68,7 +68,7 @@ format_datetime_fields <- function(recording_start) {
 #' @param filename Character. Path or filename to parse.
 #' @param tz Character. Timezone string. Default \code{"UTC"}.
 #' @return A named list of metadata fields.
-#' @export
+#' @noRd
 parse_sap_filename <- function(filename, tz = "UTC") {
   base <- basename(filename)
   pattern <- "^(.+?)_(\\d+(?:\\.\\d+)?)_(\\d{1,2})_(\\d{1,2})_(\\d{1,2})_(\\d{1,2})_(\\d{1,2})\\.[Ww][Aa][Vv]$"
@@ -143,7 +143,7 @@ parse_sap_filename <- function(filename, tz = "UTC") {
 #' @param exclude_dirs Character vector of subdirectory names to skip.
 #' @param tz Character. Timezone string. Default \code{"UTC"}.
 #' @return A data frame of file metadata.
-#' @export
+#' @noRd
 create_lys_metadata <- function(base_path,
                                 recursive = TRUE,
                                 exclude_dirs = c("templates", "plots", "temp_plots"),
@@ -204,7 +204,7 @@ create_lys_metadata <- function(base_path,
 #' @param session_gap_hours Numeric. Minimum gap in hours between sessions.
 #'   Default \code{1}.
 #' @return The metadata data frame with session columns added.
-#' @export
+#' @noRd
 assign_recording_sessions <- function(metadata, session_gap_hours = 1) {
   if (!is.data.frame(metadata)) {
     stop("metadata must be a data frame.", call. = FALSE)
