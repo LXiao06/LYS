@@ -4,9 +4,8 @@ Title: Label Your Song
 Version: 0.0.0.9000
 Authors@R:
     person("Lei", "Xiao", email = "Leixiao2006@gmail.com", role = c("aut", "cre"))
-Description: Tools for organizing zebra finch recordings, assigning recording
-    sessions, and preparing template-based labeling workflows for song bouts,
-    innate calls, and pupil beg calls.
+Description: Tools for recording management, session assignment, and tracking
+    interactive vocal behavior across multiple vocal components simultaneously.
 License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true

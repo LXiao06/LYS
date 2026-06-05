@@ -1,65 +1,46 @@
 # LYS
 
-LYS (Label Your Song) is a lightweight R package scaffold for zebra finch
-recordings. It is designed to:
+LYS (Label Your Song) is a lightweight R package for recording management,
+session assignment, and simultaneously tracking the interaction of multiple
+vocal components across behavioral experiments. It is designed to:
 
-- scan a directory of SAP2011-style WAV files
-- parse recording metadata from filenames
+- scan a directory of WAV files and parse recording metadata from filenames
 - assign recording sessions from inter-file gaps
 - summarize recording days and sessions when the object is created
-- store template definitions for `song_bout`, `innate_call`, and `pupil_beg_call`
+- store and manage template definitions for labeling vocal components
+- detect and annotate vocalizations across sessions in parallel
 
-## Current workflow
+## Installation
+
+LYS is currently available from GitHub. You can install it using the
+[`remotes`](https://remotes.r-lib.org/) or
+[`devtools`](https://devtools.r-lib.org/) package:
 
 ```r
-library(LYS)
+# Install remotes if you don't have it
+install.packages("remotes")
 
-lys <- create_lys_object(
-  base_path = "/path/to/wav_directory",
-  session_gap_hours = 1
-)
-
-summary(lys)
-
-lys <- detect_vocalization(
-  lys,
-  rms_threshold = 0.1,
-  min_duration = 0.5,
-  cores = 4
-)
-
-lys <- register_template(
-  lys,
-  template_name = "bird_song_bout_a",
-  template_type = "song_bout",
-  wav_path = "/path/to/template.wav",
-  start_time = 0.5,
-  end_time = 1.8
-)
+# Install LYS from GitHub
+remotes::install_github("LXiao06/LYS")
 ```
 
-## Session logic
+### Dependencies
 
-Files are sorted by parsed recording start time. A new session is opened when:
+LYS requires R ≥ 4.1.0 and imports the `ASAP` package. The following packages
+are suggested for full functionality:
 
-- the recording day changes, or
-- the gap between consecutive WAV start times is at least 1 hour
+| Package | Purpose |
+|---|---|
+| `seewave` | Audio analysis and visualization |
+| `tuneR` | Reading and writing WAV files |
+| `monitoR` | Template-based vocalization detection |
+| `gifski` | Animated session visualizations |
+| `pbapply` / `pbmcapply` | Progress bars for parallel processing |
+| `viridisLite` | Color scales for plots |
 
-This means `create_lys_object()` immediately stores:
+Install suggested packages as needed:
 
-- file-level metadata in `lys$metadata`
-- day-level summaries in `lys$day_summary`
-- session-level summaries in `lys$session_summary`
-
-Because SAP2011 filenames encode WAV start times, session summaries report the
-first and last recording starts observed within each session.
-
-## Vocalization detection
-
-`detect_vocalization()` is an S3 generic with two current entry points:
-
-- `detect_vocalization("/path/to/file.wav")` returns a data frame of detected vocalizations
-- `detect_vocalization(lys_object)` scans every WAV in the object and stores results in `lys$vocalizations`
-
-The `lys` method parallelizes by `session_id`, so each worker processes one
-recording session at a time instead of grouping by day.
+```r
+install.packages(c("seewave", "tuneR", "monitoR", "gifski",
+                   "pbapply", "pbmcapply", "viridisLite"))
+```
