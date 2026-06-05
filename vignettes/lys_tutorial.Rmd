@@ -415,40 +415,69 @@ knitr::include_graphics("figures/vocalization_session_map.png")
 > **How to read the plot**: Each row is one recording session (labeled on the
 > y-axis by session ID). Colored rectangles mark vocalization bouts. Notice
 > that BeggingCalls (orange) and SongBouts (teal) often occur in close
-> temporal proximity — the animation in Part 6 reveals the fine-grained
+> temporal proximity — the animation in Part 7 reveals the fine-grained
 > sequential structure.
 
 ---
 
-## Part 6 — Visualize: Sliding-Window Animation
+## Part 6 — Sequence-Based Annotation
 
-`animate_vocalization_sessions()` creates a GIF that scrolls a fixed-width
-time window across every session simultaneously, making it easy to see
-within-session dynamics and sequential vocal interactions.
+The `annotate_vocalizations()` function evaluates a set of sequential rules to reclassify vocalizations chronologically for each session. This is extremely useful for subsequent statistical analyses, such as counting how many bouts are provisioning-directed (PD) or undirected (UD) relative to begging calls.
 
-### 6.1 Basic animation with sequence reclassification
+### 6.1 Apply sequence annotation rules
 
-`sequence_rules` allow you to visually reclassify a following vocal event
-based on what immediately preceded it. Here, a SongBout that starts within
-30 s of a BeggingCall end is relabeled `"PD SongBout"` (provisioning-directed)
-and rendered in red.
+Let's define a data frame of sequence rules and run `annotate_vocalizations()`:
 
-```{r animate_basic}
-pd_rules <- data.frame(
+```{r annotate_vocalizations, eval = FALSE}
+# Define sequence annotation rules
+rules <- data.frame(
   preceding_label = c("BeggingCall", "PD SongBout", "BeggingCall"),
   following_label = c("SongBout",    "SongBout",    "SongBout"),
   min_gap_sec     = c(0,             0,             120),
   max_gap_sec     = c(30,            10,            Inf),
   annotation      = c("PD SongBout", "PD SongBout", "UD SongBout"),
-  color           = "#E53935",
-  show_arrow      = FALSE
+  color           = "#E53935",       # optional formatting used in animation
+  show_arrow      = FALSE            # optional formatting used in animation
 )
 
+# Apply rules to annotate the dataset
+lys <- annotate_vocalizations(lys, sequence_rules = rules)
+```
+
+The annotated events are stored in `lys$vocalization_annotations` with an `annotated_label` column.
+
+### 6.2 View annotation summary
+
+You can generate a summary table of the resulting annotations:
+
+```{r print_annotation_table, eval = FALSE}
+table(lys$vocalization_annotations$annotated_label)
+# BeggingCall PD SongBout    SongBout UD SongBout 
+#         191          24          19          45 
+```
+
+---
+
+## Part 7 — Visualize: Sliding-Window Animation
+
+`animate_vocalization_sessions()` creates a GIF that scrolls a fixed-width
+time window across every session simultaneously, making it easy to see
+within-session dynamics and sequential vocal interactions.
+
+> **Note: `annotate_vocalizations()` vs. `animate_vocalization_sessions()`**
+> - `annotate_vocalizations()` evaluates sequence rules and saves annotations inside the `lys` object for statistical analysis.
+> - `animate_vocalization_sessions()` purely renders a GIF animation for visualization, using the rules to color-code elements dynamically without modifying the underlying data.
+
+### 7.1 Basic animation with sequence reclassification
+
+Here, a SongBout that starts within 30 s of a BeggingCall end is relabeled `"PD SongBout"` (provisioning-directed) and rendered in red using the same `rules` defined in §6.1.
+
+```{r animate_basic}
 lys <- animate_vocalization_sessions(
   lys,
   window_duration_min = 5,
   step_seconds        = 10,
-  sequence_rules      = pd_rules
+  sequence_rules      = rules
 )
 ```
 
@@ -456,7 +485,7 @@ lys <- animate_vocalization_sessions(
 knitr::include_graphics("figures/vocalization_session_animation.gif")
 ```
 
-### 6.2 Revised animation — with gap arrows and session cap
+### 7.2 Revised animation — with gap arrows and session cap
 
 This variant adds directional arrows spanning the gap between a BeggingCall
 and the SongBout it preceded, making the latency visually explicit. The
@@ -495,7 +524,7 @@ knitr::include_graphics("figures/vocalization_session_animation_revised.gif")
 > | `step_seconds` | How far the window advances per frame | 10–60 s |
 > | `max_session_sec` | Hard cap on session duration (seconds); `NULL` = shortest session | 1800–7200 |
 > | `fps` | Frames per second of the output GIF | 8–15 |
-> | `sequence_rules` | Data frame defining reclassification / arrow rules | see §6.1 |
+> | `sequence_rules` | Data frame defining reclassification / arrow rules | see §7.1 |
 
 ---
 
@@ -515,6 +544,7 @@ this tutorial:
 | Rule-based labeling | `label_vocalization(lys, rules)` | `lys$vocalizations$vocalization_label` |
 | Export audio clips | `export_vocalizations(lys, rules)` | Directory of WAV files + CSV manifest |
 | Session ethogram | `map_vocalization_sessions(lys)` | PNG + `lys$vocalization_session_map` |
+| Sequence-based annotation | `annotate_vocalizations(lys, rules)` | `lys$vocalization_annotations` |
 | Sliding-window animation | `animate_vocalization_sessions(lys)` | GIF file |
 
 Save the `lys` object with `saveRDS()` after each major step and reload it
