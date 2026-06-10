@@ -1,0 +1,27 @@
+@media (min-width: 992px) {
+  .container.template-article {
+    max-width: min(1320px, calc(100% - 48px));
+  }
+
+  .template-article .row > main {
+    flex: 0 0 82%;
+    max-width: 82%;
+    width: 82%;
+  }
+
+  .template-article .row > aside {
+    flex: 0 0 18%;
+    max-width: 18%;
+    width: 18%;
+    margin-left: 0;
+    font-size: 0.9rem;
+  }
+
+  .template-article #toc h2 {
+    font-size: 1rem;
+  }
+
+  .template-article #toc > .nav a.nav-link {
+    padding: 0.2rem 0.35rem;
+  }
+}
