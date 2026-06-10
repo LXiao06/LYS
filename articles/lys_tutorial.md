@@ -31,6 +31,7 @@ visualization and audio clipping.
 ``` r
 
 library(LYS)
+#> Loaded LYS version 0.1.0
 ```
 
 ------------------------------------------------------------------------
@@ -48,13 +49,14 @@ from ASAP, so you can work entirely within LYS.
 
 ``` r
 
-data_root_dir <- "/path/to/your/data"   # <- change to your data directory
+data_root_dir <- "/path/to/your/data" # <- change to your data directory
 
 file_path <- file.path(data_root_dir, "661/G769_46135.58056615_4_23_16_7_36.wav")
 
 visualize_song(file_path,
-               start_time_in_second = 0,
-               end_time_in_second   = 3)
+  start_time_in_second = 0,
+  end_time_in_second   = 3
+)
 ```
 
 ### 1.2 Create a song template
@@ -70,18 +72,19 @@ as a correlation fingerprint.
 
 # Trim to the region of interest first
 clip_path <- create_audio_clip(file_path,
-                               start_time = 0,
-                               end_time   = 2.5)
+  start_time = 0,
+  end_time   = 2.5
+)
 
 # Build a correlation template from one song syllable
 template_song <- create_template(
   clip_path,
   template_name = "song",
-  start_time    = 0.45,
-  end_time      = 0.70,
-  freq_min      = 1,
-  freq_max      = 8,
-  write_template = TRUE   # saves a .rda file next to the clip
+  start_time = 0.45,
+  end_time = 0.70,
+  freq_min = 1,
+  freq_max = 8,
+  write_template = TRUE # saves a .rda file next to the clip
 )
 ```
 
@@ -107,30 +110,32 @@ exemplars are turned into separate templates and then run together.
 wav_file <- file.path(data_root_dir, "661/G769_46135.58036834_4_23_16_7_16.wav")
 
 visualize_song(wav_file,
-               start_time_in_second = 0,
-               end_time_in_second   = 8)
+  start_time_in_second = 0,
+  end_time_in_second   = 8
+)
 
 clip_path1 <- create_audio_clip(wav_file,
-                                start_time = 2,
-                                end_time   = 6)
+  start_time = 2,
+  end_time   = 6
+)
 
 begging_1 <- create_template(
   clip_path1,
   template_name = "begging_1",
-  start_time    = 0.50,
-  end_time      = 0.75,
-  freq_min      = 1,
-  freq_max      = 12,
+  start_time = 0.50,
+  end_time = 0.75,
+  freq_min = 1,
+  freq_max = 12,
   write_template = TRUE
 )
 
 begging_2 <- create_template(
   clip_path1,
   template_name = "begging_2",
-  start_time    = 1.63,
-  end_time      = 1.83,
-  freq_min      = 1,
-  freq_max      = 12,
+  start_time = 1.63,
+  end_time = 1.83,
+  freq_min = 1,
+  freq_max = 12,
   write_template = TRUE
 )
 
@@ -176,7 +181,7 @@ pooled_sessions_path <- file.path(data_root_dir, "661/PD_661_667")
 
 lys <- create_lys_object(
   base_path         = pooled_sessions_path,
-  session_gap_hours = 1          # default; adjust to your experiment
+  session_gap_hours = 1 # default; adjust to your experiment
 )
 ```
 
@@ -184,7 +189,7 @@ After creation, print the object to see a summary:
 
 ``` r
 
-lys          # or: summary(lys)
+lys # or: summary(lys)
 ```
 
     #> LYS Object
@@ -217,7 +222,7 @@ which file to use as the template source.
 ``` r
 
 song_index <- get_wav_indices(lys, "G769_46135.58056615_4_23_16_7_36.wav")
-beg_index  <- get_wav_indices(lys, "G769_46135.58036834_4_23_16_7_16.wav")
+beg_index <- get_wav_indices(lys, "G769_46135.58036834_4_23_16_7_16.wav")
 ```
 
 ### 2.3 Detect general audio activity
@@ -270,7 +275,7 @@ lys <- create_template(
   template_name = "begging_2",
   template_type = "pupil_beg_call",
   index         = beg_index,
-  start_time    = 3.63,      # times are relative to the clip, not the file
+  start_time    = 3.63, # times are relative to the clip, not the file
   end_time      = 3.83,
   freq_min      = 1,
   freq_max      = 12,
@@ -302,9 +307,9 @@ applies a priority-ranked rule table.
 
 rules <- data.frame(
   template_type = c("song_bout", "pupil_beg_call"),
-  label         = c("SongBout",  "BeggingCall"),
-  min_matches   = c(1, 5),     # minimum template hits required inside a bout
-  priority      = c(2, 1)      # lower number = higher priority when ties occur
+  label         = c("SongBout", "BeggingCall"),
+  min_matches   = c(1, 5), # minimum template hits required inside a bout
+  priority      = c(2, 1) # lower number = higher priority when ties occur
 )
 ```
 
@@ -348,15 +353,15 @@ files without reprocessing the entire dataset.
 
 new_rules <- data.frame(
   template_type = c("song_bout", "pupil_beg_call"),
-  label         = c("SongBout",  "BeggingCall"),
+  label         = c("SongBout", "BeggingCall"),
   min_matches   = c(1, 5),
-  priority      = c(1, 2)          # priorities swapped for this file
+  priority      = c(1, 2) # priorities swapped for this file
 )
 
 lys <- label_vocalization(
   lys,
   rules       = new_rules,
-  multi_label = TRUE,              # allow compound labels (e.g. "SongBout;BeggingCall")
+  multi_label = TRUE, # allow compound labels (e.g. "SongBout;BeggingCall")
   files       = "G769_46136.49419826_4_24_13_43_39.wav",
   save_plot   = TRUE
 )
@@ -387,10 +392,10 @@ export these co-occurring events to their own folder:
 # Define an export rule for compound labels
 export_rules <- data.frame(
   label         = "SongBout;BeggingCall",
-  match_mode    = "exact",         # only export exact matches of this compound label
-  folder        = "co-occurring",  # folder name under output_dir
-  pad_start_sec = 0.1,             # add 0.1s padding before onset
-  pad_end_sec   = 0.1              # add 0.1s padding after offset
+  match_mode    = "exact", # only export exact matches of this compound label
+  folder        = "co-occurring", # folder name under output_dir
+  pad_start_sec = 0.1, # add 0.1s padding before onset
+  pad_end_sec   = 0.1 # add 0.1s padding after offset
 )
 
 # Export the clips
@@ -471,12 +476,12 @@ Let’s define a data frame of sequence rules and run
 # Define sequence annotation rules
 rules <- data.frame(
   preceding_label = c("BeggingCall", "PD SongBout", "BeggingCall"),
-  following_label = c("SongBout",    "SongBout",    "SongBout"),
-  min_gap_sec     = c(0,             0,             120),
-  max_gap_sec     = c(30,            10,            Inf),
+  following_label = c("SongBout", "SongBout", "SongBout"),
+  min_gap_sec     = c(0, 0, 120),
+  max_gap_sec     = c(30, 10, Inf),
   annotation      = c("PD SongBout", "PD SongBout", "UD SongBout"),
-  color           = "#E53935",       # optional formatting used in animation
-  show_arrow      = FALSE            # optional formatting used in animation
+  color           = "#E53935", # optional formatting used in animation
+  show_arrow      = FALSE # optional formatting used in animation
 )
 
 # Apply rules to annotate the dataset
@@ -493,8 +498,8 @@ You can generate a summary table of the resulting annotations:
 ``` r
 
 table(lys$vocalization_annotations$annotated_label)
-# BeggingCall PD SongBout    SongBout UD SongBout 
-#         191          24          19          45 
+# BeggingCall PD SongBout    SongBout UD SongBout
+#         191          24          19          45
 ```
 
 ------------------------------------------------------------------------
@@ -556,7 +561,7 @@ arrow_only_rule <- data.frame(
   following_label = "SongBout",
   min_gap_sec     = 0,
   max_gap_sec     = 60,
-  annotation      = "SongBout",  # same as following_label: no color change, only arrow
+  annotation      = "SongBout", # same as following_label: no color change, only arrow
   show_arrow      = TRUE
 )
 
@@ -564,7 +569,7 @@ lys <- animate_vocalization_sessions(
   lys,
   window_duration_min = 5,
   step_seconds        = 10,
-  max_session_sec     = 3600,    # cap all sessions at 1 hour
+  max_session_sec     = 3600, # cap all sessions at 1 hour
   sequence_rules      = arrow_only_rule,
   output_file         = "vocalization_session_animation_revised.gif"
 )
