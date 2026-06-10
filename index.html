@@ -63,7 +63,7 @@
 <li>store and manage template definitions for labeling vocal components</li>
 <li>detect and annotate vocalizations across sessions in parallel</li>
 </ul>
-<p>Documentation and tutorials are available on the <a href="https://lxiao06.github.io/LYS/">package website</a></p>
+<p>See the <a href="reference/index.html">function reference</a> for documentation, or start with the <a href="articles/lys_tutorial.html">Getting Started tutorial</a>.</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
@@ -74,49 +74,6 @@
 <span></span>
 <span><span class="co"># Install LYS from GitHub</span></span>
 <span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"LXiao06/LYS"</span><span class="op">)</span></span></code></pre></div>
-<div class="section level3">
-<h3 id="dependencies">Dependencies<a class="anchor" aria-label="anchor" href="#dependencies"></a>
-</h3>
-<p>LYS requires R ≥ 4.1.0 and imports the <code>ASAP</code> package. The following packages are suggested for full functionality:</p>
-<table class="table">
-<thead><tr>
-<th>Package</th>
-<th>Purpose</th>
-</tr></thead>
-<tbody>
-<tr>
-<td><code>seewave</code></td>
-<td>Audio analysis and visualization</td>
-</tr>
-<tr>
-<td><code>tuneR</code></td>
-<td>Reading and writing WAV files</td>
-</tr>
-<tr>
-<td><code>monitoR</code></td>
-<td>Template-based vocalization detection</td>
-</tr>
-<tr>
-<td><code>gifski</code></td>
-<td>Animated session visualizations</td>
-</tr>
-<tr>
-<td>
-<code>pbapply</code> / <code>pbmcapply</code>
-</td>
-<td>Progress bars for parallel processing</td>
-</tr>
-<tr>
-<td><code>viridisLite</code></td>
-<td>Color scales for plots</td>
-</tr>
-</tbody>
-</table>
-<p>Install suggested packages as needed:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"seewave"</span>, <span class="st">"tuneR"</span>, <span class="st">"monitoR"</span>, <span class="st">"gifski"</span>,</span>
-<span>                   <span class="st">"pbapply"</span>, <span class="st">"pbmcapply"</span>, <span class="st">"viridisLite"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-</div>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">

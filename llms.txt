@@ -13,8 +13,10 @@ It is designed to:
 - store and manage template definitions for labeling vocal components
 - detect and annotate vocalizations across sessions in parallel
 
-Documentation and tutorials are available on the [package
-website](https://lxiao06.github.io/LYS/)
+See the [function
+reference](https://lxiao06.github.io/LYS/reference/index.md) for
+documentation, or start with the [Getting Started
+tutorial](https://lxiao06.github.io/LYS/articles/lys_tutorial.md).
 
 ## Installation
 
@@ -29,28 +31,6 @@ install.packages("remotes")
 
 # Install LYS from GitHub
 remotes::install_github("LXiao06/LYS")
-```
-
-### Dependencies
-
-LYS requires R ≥ 4.1.0 and imports the `ASAP` package. The following
-packages are suggested for full functionality:
-
-| Package                 | Purpose                               |
-|-------------------------|---------------------------------------|
-| `seewave`               | Audio analysis and visualization      |
-| `tuneR`                 | Reading and writing WAV files         |
-| `monitoR`               | Template-based vocalization detection |
-| `gifski`                | Animated session visualizations       |
-| `pbapply` / `pbmcapply` | Progress bars for parallel processing |
-| `viridisLite`           | Color scales for plots                |
-
-Install suggested packages as needed:
-
-``` r
-
-install.packages(c("seewave", "tuneR", "monitoR", "gifski",
-                   "pbapply", "pbmcapply", "viridisLite"))
 ```
 
 # Package index
