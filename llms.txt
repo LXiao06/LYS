@@ -4,9 +4,6 @@
 management, session assignment, and simultaneously tracking the
 interaction of multiple vocal components across behavioral experiments.
 
-Documentation and tutorials are available on the package website:
-[lxiao06.github.io/LYS](https://lxiao06.github.io/LYS/)
-
 It is designed to:
 
 - scan a directory of WAV files and parse recording metadata from
@@ -15,6 +12,9 @@ It is designed to:
 - summarize recording days and sessions when the object is created
 - store and manage template definitions for labeling vocal components
 - detect and annotate vocalizations across sessions in parallel
+
+Documentation and tutorials are available on the [package
+website](https://lxiao06.github.io/LYS/)
 
 ## Installation
 
