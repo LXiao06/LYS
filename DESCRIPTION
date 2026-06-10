@@ -27,3 +27,6 @@ Suggests:
     seewave,
     tuneR
 VignetteBuilder: knitr
+Remotes:
+    github::LXiao06/ASAP
+
