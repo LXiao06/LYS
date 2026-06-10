@@ -1,32 +1,22 @@
-# =============================================================================
-# LYS — export_vocalizations()
-#
-# Clips detected, labeled vocalization bouts from their source WAV files and
-# writes each clip to a per-label subdirectory for downstream analysis.
-#
-# Design goals
-# ------------
-# * Works with both single-label and multi-label (compound) lys objects.
-# * Accepts an optional `rules` data frame so the caller can choose exactly
-#   which label(s) / label combinations to export, where to put them, and
-#   whether to add padding around each clip.
-# * Falls back to exporting every non-TBD label when no rules are supplied.
-# * Mirrors the parallel-processing / verbose style of label_vocalization().
-# =============================================================================
+# Export Vocalizations
+# Update date : Jun. 10, 2026
 
-
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
 
 #' Normalise export rules into a canonical data frame
 #'
-#' @param rules NULL or a data frame with (at minimum) a \code{label} column.
-#' @param available_labels Character vector of labels present in the data.
-#' @param label_sep Character. Separator used in compound labels.
+#' @description
+#' Validates and coerces the rules argument into the canonical five-column
+#' form. When rules is NULL, generates one rule per available label.
+#'
+#' @param rules NULL or a data frame with (at minimum) a \code{label} column
+#' @param available_labels Character vector of labels present in the data
+#' @param label_sep Character. Separator used in compound labels
+#'
 #' @return A validated data frame with columns:
 #'   label, match_mode, folder, pad_start_sec, pad_end_sec.
+#'
 #' @noRd
+#' @keywords internal
 normalise_export_rules <- function(rules, available_labels, label_sep = ";") {
   # Default: one rule per unique label, exact match, folder = sanitised label
   if (is.null(rules)) {
@@ -51,8 +41,8 @@ normalise_export_rules <- function(rules, available_labels, label_sep = ";") {
 
   rules$label <- as.character(rules$label)
 
-  # match_mode: "exact"    — vocalization_label == label (including compound)
-  #             "contains" — label appears as one component of a compound label
+  # match_mode: "exact"    - vocalization_label == label (including compound)
+  #             "contains" - label appears as one component of a compound label
   if (!"match_mode" %in% names(rules)) {
     rules$match_mode <- "exact"
   }
@@ -91,12 +81,19 @@ normalise_export_rules <- function(rules, available_labels, label_sep = ";") {
 
 #' Match vocalizations to a single export rule
 #'
-#' @param vocalizations Data frame: lys$vocalizations (labeled).
-#' @param rule One-row data frame from the normalised rules table.
-#' @param label_col Character. Column holding the vocalization label.
-#' @param label_sep Character. Separator for compound labels.
+#' @description
+#' Returns a logical vector indicating which vocalization rows match the rule,
+#' using either exact or contains matching.
+#'
+#' @param vocalizations Data frame: lys$vocalizations (labeled)
+#' @param rule One-row data frame from the normalised rules table
+#' @param label_col Character. Column holding the vocalization label
+#' @param label_sep Character. Separator for compound labels
+#'
 #' @return Logical vector, TRUE for rows that match this rule.
+#'
 #' @noRd
+#' @keywords internal
 match_export_rule <- function(vocalizations, rule, label_col, label_sep = ";") {
   labels_vec <- vocalizations[[label_col]]
 
@@ -115,15 +112,20 @@ match_export_rule <- function(vocalizations, rule, label_col, label_sep = ";") {
 
 #' Clip and write one vocalization to disk
 #'
-#' Calls ASAP::create_audio_clip() under the hood. Returns the output path
-#' invisibly on success, or NULL on failure.
+#' @description
+#' Calls \code{ASAP::create_audio_clip()} to extract and write a vocalization
+#' clip. Returns the output path invisibly on success, or NULL on failure.
 #'
-#' @param row        Single-row data frame from lys$vocalizations.
-#' @param dest_dir   Destination directory.
-#' @param pad_start  Seconds to prepend before the detected onset.
-#' @param pad_end    Seconds to append after the detected offset.
-#' @param overwrite  Logical. Overwrite existing clips.
+#' @param row Single-row data frame from lys$vocalizations
+#' @param dest_dir Character. Destination directory
+#' @param pad_start Numeric. Seconds to prepend before the detected onset
+#' @param pad_end Numeric. Seconds to append after the detected offset
+#' @param overwrite Logical. Overwrite existing clips
+#'
+#' @return Output path (character) or NULL on failure.
+#'
 #' @noRd
+#' @keywords internal
 clip_one_vocalization <- function(row, dest_dir, pad_start, pad_end, overwrite) {
   wav_path <- if ("file_path" %in% names(row) && nzchar(row$file_path[1])) {
     row$file_path[1]
@@ -138,8 +140,7 @@ clip_one_vocalization <- function(row, dest_dir, pad_start, pad_end, overwrite) 
   clip_start <- max(0, row$start_time[1] - pad_start)
   clip_end   <- row$end_time[1] + pad_end
 
-  # Build a descriptive output filename:
-  #   <source_basename>_<selec>_<start_ms>-<end_ms>.wav
+  # Build descriptive output filename: <source_basename>_<selec>_<start_ms>-<end_ms>.wav
   src_stem <- tools::file_path_sans_ext(basename(wav_path))
   selec_str <- if ("selec" %in% names(row) && !is.na(row$selec[1])) {
     sprintf("s%03d", as.integer(row$selec[1]))
@@ -172,7 +173,7 @@ clip_one_vocalization <- function(row, dest_dir, pad_start, pad_end, overwrite) 
     },
     error = function(e) {
       warning(
-        sprintf("Failed to clip %s [%.2f–%.2f s]: %s",
+        sprintf("Failed to clip %s [%.2f-%.2f s]: %s",
                 basename(wav_path), clip_start, clip_end, conditionMessage(e)),
         call. = FALSE
       )
@@ -182,9 +183,7 @@ clip_one_vocalization <- function(row, dest_dir, pad_start, pad_end, overwrite) 
 }
 
 
-# ---------------------------------------------------------------------------
-# Public function
-# ---------------------------------------------------------------------------
+# Exported function -------------------------------------------------------
 
 #' Export vocalization clips to per-label subdirectories
 #'
@@ -296,7 +295,7 @@ export_vocalizations <- function(lys,
 
   if (verbose) message("\n=== Starting Vocalization Export ===")
 
-  # --- Validate lys ----------------------------------------------------------
+  # Validate lys
   if (!inherits(lys, "lys")) {
     stop("lys must be a LYS object.", call. = FALSE)
   }
@@ -324,7 +323,7 @@ export_vocalizations <- function(lys,
     )
   }
 
-  # --- Subset to requested sessions ------------------------------------------
+  # Subset to requested sessions
   voc <- as.data.frame(lys$vocalizations, stringsAsFactors = FALSE)
 
   if (!is.null(session)) {
@@ -337,7 +336,7 @@ export_vocalizations <- function(lys,
     }
   }
 
-  # --- Resolve output directory ----------------------------------------------
+  # Resolve output directory
   if (is.null(output_dir)) {
     parent_dir   <- dirname(normalizePath(lys$base_path, mustWork = TRUE))
     output_dir   <- file.path(parent_dir, "vocalization_clips")
@@ -345,7 +344,7 @@ export_vocalizations <- function(lys,
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
   output_dir <- normalizePath(output_dir, mustWork = TRUE)
 
-  # --- Build export rules ----------------------------------------------------
+  # Build export rules
   available_labels <- sort(unique(voc[[label_col]]))
   available_labels <- available_labels[
     !is.na(available_labels) & nzchar(available_labels) &
@@ -375,7 +374,7 @@ export_vocalizations <- function(lys,
 
   cores <- normalize_detection_cores(cores)
 
-  # --- Process each rule -----------------------------------------------------
+  # Process each rule
   manifest_rows <- list()
   export_summary <- list()
 
@@ -388,7 +387,7 @@ export_vocalizations <- function(lys,
     if (!nrow(subset)) {
       if (verbose) {
         message(sprintf(
-          "\n  Rule [%d] '%s': no matching vocalizations — skipping.",
+          "\n  Rule [%d] '%s': no matching vocalizations - skipping.",
           ri, rule$label
         ))
       }
@@ -477,7 +476,7 @@ export_vocalizations <- function(lys,
     )
   }
 
-  # --- Save manifest ---------------------------------------------------------
+  # Save manifest
   manifest_path <- NULL
   if (save_manifest && length(manifest_rows)) {
     manifest <- do.call(rbind, manifest_rows)
@@ -489,7 +488,7 @@ export_vocalizations <- function(lys,
     }
   }
 
-  # --- Final summary ---------------------------------------------------------
+  # Final summary
   if (verbose) {
     total_ok   <- sum(vapply(export_summary, `[[`, integer(1), "n_exported"))
     total_fail <- sum(vapply(export_summary, `[[`, integer(1), "n_failed"))
@@ -500,7 +499,7 @@ export_vocalizations <- function(lys,
     message("Output directory: ", output_dir)
   }
 
-  # --- Attach summary to lys -------------------------------------------------
+  # Attach summary to lys
   lys$misc$last_export <- list(
     output_dir    = output_dir,
     manifest_path = manifest_path,

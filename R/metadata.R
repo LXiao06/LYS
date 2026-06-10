@@ -1,3 +1,18 @@
+# Metadata
+# Update date : Jun. 10, 2026
+
+#' Validate a base path argument
+#'
+#' @description
+#' Checks that base_path is a single, existing, readable directory and
+#' returns its normalised absolute path.
+#'
+#' @param base_path Character. Path to validate
+#'
+#' @return A normalised absolute path string.
+#'
+#' @noRd
+#' @keywords internal
 validate_base_path <- function(base_path) {
   if (!is.character(base_path) || length(base_path) != 1L || is.na(base_path)) {
     stop("base_path must be a single character string.", call. = FALSE)
@@ -16,6 +31,20 @@ validate_base_path <- function(base_path) {
   normalized
 }
 
+
+#' Test whether a path contains any of the specified components
+#'
+#' @description
+#' Returns TRUE for each path whose directory tree contains at least one of
+#' the named components.
+#'
+#' @param path Character vector of file paths
+#' @param components Character vector of path component names to match
+#'
+#' @return Logical vector the same length as path.
+#'
+#' @noRd
+#' @keywords internal
 path_has_component <- function(path, components) {
   if (!length(components)) {
     return(rep(FALSE, length(path)))
@@ -26,6 +55,21 @@ path_has_component <- function(path, components) {
   vapply(parts, function(x) any(x %in% components), logical(1))
 }
 
+
+#' List WAV files under a directory
+#'
+#' @description
+#' Recursively (or not) lists all WAV files under base_path, optionally
+#' excluding files nested inside named subdirectories.
+#'
+#' @param base_path Character. Root directory to search
+#' @param recursive Logical. Search subdirectories. Default \code{TRUE}
+#' @param exclude_dirs Character vector of subdirectory names to skip
+#'
+#' @return Sorted character vector of WAV file paths.
+#'
+#' @noRd
+#' @keywords internal
 list_wav_files <- function(base_path,
                            recursive = TRUE,
                            exclude_dirs = c("templates", "plots", "temp_plots")) {
@@ -45,6 +89,19 @@ list_wav_files <- function(base_path,
   sort(unique(files))
 }
 
+
+#' Infer a bird ID from a filename
+#'
+#' @description
+#' Extracts a leading alphanumeric token from the filename stem as the bird
+#' identifier, falling back to the full stem when no token is found.
+#'
+#' @param filename Character. File path or basename
+#'
+#' @return A single character string.
+#'
+#' @noRd
+#' @keywords internal
 infer_bird_id <- function(filename) {
   stem <- tools::file_path_sans_ext(basename(filename))
   match <- regmatches(stem, regexec("^([A-Za-z]+\\d+|[A-Za-z]?\\d+)", stem))
@@ -56,6 +113,20 @@ infer_bird_id <- function(filename) {
   stem
 }
 
+
+#' Format a POSIXct timestamp into standard date/time fields
+#'
+#' @description
+#' Returns a named list containing the recording day, date string, and time
+#' string for a given POSIXct timestamp.
+#'
+#' @param recording_start A single POSIXct value
+#'
+#' @return A named list with elements recording_day, recording_date, and
+#'   recording_time.
+#'
+#' @noRd
+#' @keywords internal
 format_datetime_fields <- function(recording_start) {
   list(
     recording_day = as.Date(recording_start, tz = "UTC"),
@@ -64,11 +135,21 @@ format_datetime_fields <- function(recording_start) {
   )
 }
 
+
 #' Parse a SAP-format filename into metadata fields
-#' @param filename Character. Path or filename to parse.
-#' @param tz Character. Timezone string. Default \code{"UTC"}.
+#'
+#' @description
+#' Attempts to decode the SAP2011 filename convention
+#' (\code{BirdID_timestamp_MM_DD_HH_MM_SS.wav}). Falls back to the file
+#' modification time when the pattern does not match.
+#'
+#' @param filename Character. Path or filename to parse
+#' @param tz Character. Timezone string. Default \code{"UTC"}
+#'
 #' @return A named list of metadata fields.
+#'
 #' @noRd
+#' @keywords internal
 parse_sap_filename <- function(filename, tz = "UTC") {
   base <- basename(filename)
   pattern <- "^(.+?)_(\\d+(?:\\.\\d+)?)_(\\d{1,2})_(\\d{1,2})_(\\d{1,2})_(\\d{1,2})_(\\d{1,2})\\.[Ww][Aa][Vv]$"
@@ -137,13 +218,22 @@ parse_sap_filename <- function(filename, tz = "UTC") {
   )
 }
 
+
 #' Create a LYS metadata table from a directory of WAV files
-#' @param base_path Character. Root directory containing WAV files.
-#' @param recursive Logical. Search subdirectories. Default \code{TRUE}.
-#' @param exclude_dirs Character vector of subdirectory names to skip.
-#' @param tz Character. Timezone string. Default \code{"UTC"}.
+#'
+#' @description
+#' Scans base_path for WAV files, parses each filename for timestamp metadata,
+#' and returns a tidy data frame with one row per file.
+#'
+#' @param base_path Character. Root directory containing WAV files
+#' @param recursive Logical. Search subdirectories. Default \code{TRUE}
+#' @param exclude_dirs Character vector of subdirectory names to skip
+#' @param tz Character. Timezone string. Default \code{"UTC"}
+#'
 #' @return A data frame of file metadata.
+#'
 #' @noRd
+#' @keywords internal
 create_lys_metadata <- function(base_path,
                                 recursive = TRUE,
                                 exclude_dirs = c("templates", "plots", "temp_plots"),
@@ -199,12 +289,21 @@ create_lys_metadata <- function(base_path,
   metadata
 }
 
+
 #' Assign recording sessions to a LYS metadata table
-#' @param metadata Data frame as returned by \code{create_lys_metadata()}.
+#'
+#' @description
+#' Groups files into sessions based on inter-file gaps and day boundaries,
+#' then annotates each row with session identifiers and timing fields.
+#'
+#' @param metadata Data frame as returned by \code{create_lys_metadata()}
 #' @param session_gap_hours Numeric. Minimum gap in hours between sessions.
-#'   Default \code{1}.
+#'   Default \code{1}
+#'
 #' @return The metadata data frame with session columns added.
+#'
 #' @noRd
+#' @keywords internal
 assign_recording_sessions <- function(metadata, session_gap_hours = 1) {
   if (!is.data.frame(metadata)) {
     stop("metadata must be a data frame.", call. = FALSE)
@@ -238,7 +337,7 @@ assign_recording_sessions <- function(metadata, session_gap_hours = 1) {
   day_ids <- unique(metadata$recording_day)
   metadata$day_index <- match(metadata$recording_day, day_ids)
 
-  metadata$session_number <- ave(
+  metadata$session_number <- stats::ave(
     metadata$session_id,
     metadata$recording_day,
     FUN = function(x) match(x, unique(x))
@@ -250,7 +349,7 @@ assign_recording_sessions <- function(metadata, session_gap_hours = 1) {
     metadata$session_number
   )
 
-  metadata$file_index_within_session <- ave(
+  metadata$file_index_within_session <- stats::ave(
     metadata$session_id,
     metadata$session_id,
     FUN = seq_along

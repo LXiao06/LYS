@@ -2,19 +2,98 @@
 % Please edit documentation in R/template_detection.R
 \name{detect_template}
 \alias{detect_template}
+\alias{detect_template.default}
+\alias{detect_template.lys}
 \title{Run template-based vocalization detection}
 \usage{
 detect_template(x, ...)
+
+\method{detect_template}{default}(
+  x,
+  template,
+  cor.method = "pearson",
+  proximity_window = NULL,
+  plot = TRUE,
+  save_plot = FALSE,
+  plot_dir = NULL,
+  ...
+)
+
+\method{detect_template}{lys}(
+  x,
+  template_name = NULL,
+  session = NULL,
+  indices = NULL,
+  threshold = NULL,
+  cores = NULL,
+  cor.method = "pearson",
+  proximity_window = NULL,
+  save_plot = TRUE,
+  plot_percent = 100,
+  output_dir = NULL,
+  verbose = TRUE,
+  ...
+)
 }
 \arguments{
-\item{x}{A \\code{lys} object or a path to a WAV file.}
+\item{x}{A \code{lys} object or a path to a WAV file}
 
-\item{...}{Additional arguments passed to the method.}
+\item{...}{Additional arguments (currently unused)}
+
+\item{template}{A \code{TemplateList} object or a list of them (default
+method), or \code{NULL} to use all stored templates (LYS method)}
+
+\item{cor.method}{Character. Correlation method passed to
+\code{monitoR::corMatch()}. Default \code{"pearson"}}
+
+\item{proximity_window}{Numeric or NULL. Within this window (seconds),
+only the highest-scoring detection is kept per template. \code{NULL}
+disables filtering}
+
+\item{plot}{Logical. Draw detection plots interactively. Default \code{TRUE}}
+
+\item{save_plot}{Logical. Save detection plots to disk. Default \code{FALSE}
+(default method), \code{TRUE} (LYS method)}
+
+\item{plot_dir}{Character. Directory for saved plots (default method only)}
+
+\item{template_name}{Character vector. Names of stored templates to run;
+\code{NULL} runs all (LYS method only)}
+
+\item{session}{Character or integer vector. Sessions to restrict detection
+to (LYS method only)}
+
+\item{indices}{Integer vector. File indices within a session to process
+(LYS method only)}
+
+\item{threshold}{Named numeric vector or scalar to override stored template
+cutoffs (LYS method only)}
+
+\item{cores}{Integer. Number of parallel workers (LYS method only)}
+
+\item{plot_percent}{Numeric. Percentage of files to plot (LYS method only)}
+
+\item{output_dir}{Character. Root output directory (LYS method only)}
+
+\item{verbose}{Logical. Print progress messages. Default \code{TRUE} (LYS
+method only)}
 }
 \value{
-For \\code{lys} input, the updated object; for a WAV path, a
-data frame of detections.
+For \code{lys} input, the updated object (invisibly). For a WAV
+path, a data frame of detections or \code{NULL}.
 }
 \description{
-Run template-based vocalization detection
+Runs correlation-based template detection across a WAV file or all files
+in a LYS object, using the \pkg{monitoR} package. Detections are stored
+in \code{lys$templates$template_matches} (LYS method).
+}
+\examples{
+\dontrun{
+# Single WAV file
+hits <- detect_template("song.wav", template = tmpl)
+
+# LYS object (uses all stored templates)
+lys <- detect_template(lys)
+}
+
 }

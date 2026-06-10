@@ -1,206 +1,75 @@
-check_audio_dependencies <- function() {
-  missing <- c(
-    if (!requireNamespace("tuneR", quietly = TRUE)) "tuneR",
-    if (!requireNamespace("seewave", quietly = TRUE)) "seewave"
-  )
-
-  if (length(missing)) {
-    stop(
-      sprintf(
-        "detect_vocalization() requires these packages to be installed: %s",
-        paste(missing, collapse = ", ")
-      ),
-      call. = FALSE
-    )
-  }
-}
-
-compute_rms_envelope <- function(samples, wl, ovlp) {
-  if (inherits(samples, "Wave")) {
-    samples <- samples@left
-  } else if (is.matrix(samples) || is.data.frame(samples)) {
-    samples <- samples[, 1]
-  }
-
-  samples <- as.numeric(samples)
-  stride <- round(wl * (1 - ovlp / 100))
-
-  if (stride < 1L) {
-    stop("wl and ovlp produce an invalid stride.", call. = FALSE)
-  }
-
-  if (length(samples) < wl) {
-    return(numeric())
-  }
-
-  squared <- samples^2
-  window <- rep(1 / wl, wl)
-  rms_squared <- stats::filter(squared, filter = window, sides = 1)
-  rms_squared <- rms_squared[wl:length(rms_squared)]
-
-  if (!length(rms_squared)) {
-    return(numeric())
-  }
-
-  indices <- seq(1L, length(rms_squared), by = stride)
-  sqrt(rms_squared[indices])
-}
-
-plot_vocalization_detection <- function(wave,
-                                        time_points,
-                                        rms_env,
-                                        rms_threshold,
-                                        detections,
-                                        wl,
-                                        ovlp,
-                                        title = "Vocalization Detection") {
-  old_par <- graphics::par(no.readonly = TRUE)
-  on.exit(graphics::par(old_par), add = TRUE)
-
-  duration <- length(wave@left) / wave@samp.rate
-  xlim <- c(0, duration)
-  ylim_rms <- c(0, max(c(rms_env, rms_threshold, 1), na.rm = TRUE) * 1.08)
-  if (!all(is.finite(ylim_rms)) || diff(ylim_rms) <= 0) {
-    ylim_rms <- c(0, 1)
-  }
-
-  spectro_data <- tryCatch(
-    suppressWarnings(
-      seewave::spectro(
-        wave = wave,
-        f = wave@samp.rate,
-        wl = wl,
-        ovlp = ovlp,
-        plot = FALSE
-      )
-    ),
-    error = function(e) NULL
-  )
-
-  spectro_ok <- !is.null(spectro_data) &&
-    length(spectro_data$time) > 1L &&
-    length(spectro_data$freq) > 1L &&
-    all(dim(spectro_data$amp) == c(length(spectro_data$freq), length(spectro_data$time))) &&
-    any(is.finite(spectro_data$amp))
-
-  if (spectro_ok) {
-    spectro_amp <- spectro_data$amp
-    spectro_amp[!is.finite(spectro_amp)] <- -80
-    spectro_amp <- pmax(spectro_amp, -80)
-  }
-
-  palette <- if (requireNamespace("viridisLite", quietly = TRUE)) {
-    viridisLite::magma(256)
-  } else {
-    grDevices::colorRampPalette(c("black", "purple4", "orangered", "yellow"))(256)
-  }
-
-  graphics::par(
-    bg = "black",
-    fg = "white",
-    col.axis = "white",
-    col.lab = "white",
-    col.main = "white",
-    mfrow = c(2, 1),
-    oma = c(2.8, 0, 1, 0)
-  )
-
-  graphics::par(mar = c(1.1, 4.8, 1.1, 1.5))
-  graphics::plot(
-    time_points,
-    rms_env,
-    type = "l",
-    col = "red",
-    lwd = 1,
-    xlim = xlim,
-    ylim = ylim_rms,
-    xlab = "",
-    ylab = "RMS",
-    main = "",
-    xaxt = "n"
-  )
-  graphics::abline(h = rms_threshold, col = "green", lty = 2, lwd = 1)
-
-  if (!is.null(detections) && nrow(detections) > 0) {
-    onset_y <- stats::approx(time_points, rms_env, xout = detections$start_time, rule = 2)$y
-    offset_y <- stats::approx(time_points, rms_env, xout = detections$end_time, rule = 2)$y
-    graphics::points(detections$start_time, onset_y, col = "blueviolet", pch = 19)
-    graphics::points(detections$end_time, offset_y, col = "orange", pch = 19)
-  }
-
-  graphics::legend(
-    "topright",
-    legend = c("RMS", "Threshold", "Onset", "Offset"),
-    col = c("red", "green", "blueviolet", "orange"),
-    lty = c(1, 2, NA, NA),
-    pch = c(NA, NA, 19, 19),
-    bty = "n",
-    text.col = "white",
-    cex = 0.9
-  )
-
-  graphics::par(mar = c(3.6, 4.8, 0.7, 1.5))
-  if (spectro_ok) {
-    graphics::image(
-      x = spectro_data$time,
-      y = spectro_data$freq * 1000,
-      z = t(spectro_amp),
-      col = palette,
-      zlim = c(-80, 0),
-      xlim = xlim,
-      ylim = range(spectro_data$freq * 1000, finite = TRUE),
-      xlab = "",
-      ylab = "FREQUENCY (Hz)",
-      useRaster = TRUE
-    )
-  } else {
-    graphics::plot(
-      NA,
-      xlim = xlim,
-      ylim = c(0, wave@samp.rate / 2),
-      xlab = "",
-      ylab = "FREQUENCY (Hz)"
-    )
-  }
-
-  if (!is.null(detections) && nrow(detections) > 0) {
-    for (i in seq_len(nrow(detections))) {
-      graphics::abline(v = detections$start_time[i], col = "white", lty = 2, lwd = 1.2)
-      graphics::abline(v = detections$end_time[i], col = "white", lty = 2, lwd = 1.2)
-    }
-
-    label_col <- intersect(c("vocalization_label", "label"), names(detections))[1]
-    if (length(label_col) && !is.na(label_col)) {
-      usr <- graphics::par("usr")
-      label_x <- (detections$start_time + detections$end_time) / 2
-      label_y <- usr[4] - 0.04 * diff(usr[3:4])
-      graphics::text(
-        x = label_x,
-        y = label_y,
-        labels = detections[[label_col]],
-        col = "white",
-        cex = 0.8,
-        pos = 3,
-        xpd = NA
-      )
-    }
-  }
-
-  graphics::mtext("TIME", side = 1, outer = TRUE, line = 1.1, col = "white")
-}
+# Detect Vocalization
+# Update date : Jun. 10, 2026
 
 #' Detect vocalizations in audio
-#' @param x A \\code{lys} object or a path to a WAV file.
-#' @param ... Additional arguments passed to the method.
-#' @return For \\code{lys} input, the updated object; for a WAV path, a
-#'   data frame of detected vocalization bouts.
+#'
+#' @description
+#' Detects vocalization bouts in a WAV file or across all files in a LYS
+#' object using an RMS envelope threshold algorithm. A bandpass filter is
+#' applied before detection; overlapping bouts within \code{gap_duration} are
+#' merged; bouts shorter than \code{min_duration} are discarded.
+#'
+#' @param x A \code{lys} object or a path to a WAV file
+#' @param wl Integer. Window length in samples for the RMS envelope. Default
+#'   \code{1024}
+#' @param ovlp Numeric. Overlap percentage between consecutive windows. Default
+#'   \code{50}
+#' @param norm_method Character. Normalisation method: \code{"quantile"}
+#'   (default) or \code{"max"}
+#' @param rms_threshold Numeric. RMS threshold after normalisation. Default
+#'   \code{0.1} for WAV files, \code{0.2} for LYS objects
+#' @param min_duration Numeric. Minimum bout duration in seconds. Default
+#'   \code{0.5} for WAV files, \code{1} for LYS objects
+#' @param gap_duration Numeric. Gap shorter than this (seconds) merges adjacent
+#'   bouts. Default \code{0.3} for WAV files, \code{0.5} for LYS objects
+#' @param edge_window Numeric. Duration (seconds) at the start of the file
+#'   suppressed to avoid edge artefacts. Default \code{0.05}
+#' @param freq_range Numeric vector \code{c(min, max)} in kHz for bandpass
+#'   filter. Default \code{c(3, 5)}
+#' @param plot Logical. Draw detection plots interactively. Default \code{TRUE}
+#' @param save_plot Logical. Save detection plots to disk. Default \code{FALSE}
+#'   for WAV files, \code{TRUE} for LYS objects
+#' @param plot_dir Character. Directory for saved plots; \code{NULL} uses a
+#'   default location relative to the input file
+#' @param session Character or integer vector. Session IDs or labels to process.
+#'   \code{NULL} processes all sessions (LYS method only)
+#' @param indices Integer vector. Row indices within a session to process.
+#'   \code{NULL} processes all files (LYS method only)
+#' @param cores Integer. Number of parallel workers. \code{NULL} auto-detects
+#'   (LYS method only)
+#' @param save_csv Logical. Write per-session CSV result files. Default
+#'   \code{FALSE} (LYS method only)
+#' @param plot_percent Numeric. Percentage of files to plot when running on a
+#'   LYS object. Default \code{100} (LYS method only)
+#' @param output_dir Character. Root output directory; \code{NULL} uses a
+#'   default location (LYS method only)
+#' @param verbose Logical. Print progress messages. Default \code{TRUE} (LYS
+#'   method only)
+#' @param ... Additional arguments (currently unused)
+#'
+#' @return For \code{lys} input, the updated object with detections stored in
+#'   \code{lys$vocalizations} (invisibly). For a WAV path, a data frame of
+#'   detected vocalization bouts.
+#'
+#' @examples
+#' \dontrun{
+#' # Single WAV file
+#' bouts <- detect_vocalization("song.wav", rms_threshold = 0.15)
+#'
+#' # LYS object
+#' lys <- detect_vocalization(lys, rms_threshold = 0.2, cores = 4)
+#' }
+#'
+#' @rdname detect_vocalization
 #' @export
 detect_vocalization <- function(x, ...) {
   UseMethod("detect_vocalization")
 }
 
+
+#' @rdname detect_vocalization
 #' @export
-detect_vocalization.default <- function(x,
+detect_vocalization.default <- function(x,   # x is WAV file path
                                         wl = 1024,
                                         ovlp = 50,
                                         norm_method = c("quantile", "max"),
@@ -399,105 +268,17 @@ detect_vocalization.default <- function(x,
   detections
 }
 
-combine_vocalization_results <- function(results) {
-  results <- results[!vapply(results, is.null, logical(1))]
 
-  if (!length(results)) {
-    return(NULL)
-  }
-
-  out <- do.call(rbind, results)
-  out <- as.data.frame(out, stringsAsFactors = FALSE)
-  rownames(out) <- NULL
-  out
-}
-
-normalize_detection_cores <- function(cores) {
-  if (is.null(cores)) {
-    detected <- suppressWarnings(as.integer(parallel::detectCores()))
-    if (is.na(detected) || detected < 2L) {
-      return(1L)
-    }
-    return(max(1L, detected - 1L))
-  }
-
-  cores <- suppressWarnings(as.integer(cores))
-  if (is.na(cores) || cores < 1L) {
-    return(1L)
-  }
-
-  cores
-}
-
-sanitize_detection_label <- function(x) {
-  gsub("[^A-Za-z0-9_-]", "_", x)
-}
-
-metadata_scalar <- function(x, default = NA_character_) {
-  if (!length(x) || is.na(x[1])) {
-    return(default)
-  }
-
-  as.character(x[1])
-}
-
-metadata_numeric_scalar <- function(x) {
-  if (!length(x) || is.na(x[1])) {
-    return(NA_real_)
-  }
-
-  as.numeric(x[1])
-}
-
-metadata_integer_scalar <- function(x) {
-  if (!length(x) || is.na(x[1])) {
-    return(NA_integer_)
-  }
-
-  as.integer(x[1])
-}
-
-new_detection_error <- function(file_path, session_label, message) {
-  structure(
-    list(
-      file_path = file_path,
-      filename = basename(file_path),
-      session_label = session_label,
-      message = message
-    ),
-    class = "lys_detection_error"
-  )
-}
-
-is_detection_error <- function(x) {
-  inherits(x, "lys_detection_error")
-}
-
-resolve_lys_output_dir <- function(base_path, output_dir = NULL) {
-  if (!is.null(output_dir)) {
-    if (!is.character(output_dir) || length(output_dir) != 1L || is.na(output_dir) ||
-        !nzchar(output_dir)) {
-      stop("output_dir must be a single non-empty path.", call. = FALSE)
-    }
-
-    dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-    return(normalizePath(output_dir, mustWork = TRUE))
-  }
-
-  parent_dir <- dirname(normalizePath(base_path, mustWork = TRUE))
-  dir.create(parent_dir, recursive = TRUE, showWarnings = FALSE)
-  normalizePath(parent_dir, mustWork = TRUE)
-}
-
+#' @rdname detect_vocalization
 #' @export
-detect_vocalization.lys <- function(x,
+detect_vocalization.lys <- function(x,   # x is LYS object
                                     session = NULL,
-	                                   indices = NULL,
-	                                   cores = NULL,
-	                                   save_plot = TRUE,
-	                                   save_csv = FALSE,
-	                                   plot_percent = 100,
-	                                  output_dir = NULL,
+                                    indices = NULL,
+                                    cores = NULL,
+                                    save_plot = TRUE,
+                                    save_csv = FALSE,
+                                    plot_percent = 100,
+                                    output_dir = NULL,
                                     wl = 1024,
                                     ovlp = 50,
                                     norm_method = c("quantile", "max"),
@@ -771,4 +552,446 @@ detect_vocalization.lys <- function(x,
   }
 
   invisible(x)
+}
+
+
+#' Check audio package dependencies
+#'
+#' @description
+#' Stops with an informative error if tuneR or seewave are not installed.
+#'
+#' @return NULL (called for its side effect).
+#'
+#' @noRd
+#' @keywords internal
+check_audio_dependencies <- function() {
+  missing <- c(
+    if (!requireNamespace("tuneR", quietly = TRUE)) "tuneR",
+    if (!requireNamespace("seewave", quietly = TRUE)) "seewave"
+  )
+
+  if (length(missing)) {
+    stop(
+      sprintf(
+        "detect_vocalization() requires these packages to be installed: %s",
+        paste(missing, collapse = ", ")
+      ),
+      call. = FALSE
+    )
+  }
+}
+
+
+#' Compute an RMS envelope from a wave object or numeric vector
+#'
+#' @description
+#' Computes a windowed RMS envelope using a moving average over squared samples,
+#' then subsamples by the stride defined by wl and ovlp.
+#'
+#' @param samples A \code{Wave} object, matrix, or numeric vector of samples
+#' @param wl Integer. Window length in samples
+#' @param ovlp Numeric. Overlap percentage between windows
+#'
+#' @return Numeric vector of RMS values.
+#'
+#' @noRd
+#' @keywords internal
+compute_rms_envelope <- function(samples, wl, ovlp) {
+  if (inherits(samples, "Wave")) {
+    samples <- samples@left
+  } else if (is.matrix(samples) || is.data.frame(samples)) {
+    samples <- samples[, 1]
+  }
+
+  samples <- as.numeric(samples)
+  stride <- round(wl * (1 - ovlp / 100))
+
+  if (stride < 1L) {
+    stop("wl and ovlp produce an invalid stride.", call. = FALSE)
+  }
+
+  if (length(samples) < wl) {
+    return(numeric())
+  }
+
+  squared <- samples^2
+  window <- rep(1 / wl, wl)
+  rms_squared <- stats::filter(squared, filter = window, sides = 1)
+  rms_squared <- rms_squared[wl:length(rms_squared)]
+
+  if (!length(rms_squared)) {
+    return(numeric())
+  }
+
+  indices <- seq(1L, length(rms_squared), by = stride)
+  sqrt(rms_squared[indices])
+}
+
+
+#' Plot vocalization detection results
+#'
+#' @description
+#' Renders a two-panel plot with the RMS envelope (top) and spectrogram
+#' (bottom), overlaying detected bout onsets and offsets.
+#'
+#' @param wave A \code{Wave} object
+#' @param time_points Numeric vector of time points matching rms_env
+#' @param rms_env Numeric vector of RMS envelope values
+#' @param rms_threshold Numeric. Threshold line to draw
+#' @param detections Data frame of detected bouts or NULL
+#' @param wl Integer. Window length used to compute the spectrogram
+#' @param ovlp Numeric. Overlap percentage used to compute the spectrogram
+#' @param title Character. Plot title
+#'
+#' @return NULL (called for its side effect).
+#'
+#' @noRd
+#' @keywords internal
+plot_vocalization_detection <- function(wave,
+                                        time_points,
+                                        rms_env,
+                                        rms_threshold,
+                                        detections,
+                                        wl,
+                                        ovlp,
+                                        title = "Vocalization Detection") {
+  old_par <- graphics::par(no.readonly = TRUE)
+  on.exit(graphics::par(old_par), add = TRUE)
+
+  duration <- length(wave@left) / wave@samp.rate
+  xlim <- c(0, duration)
+  ylim_rms <- c(0, max(c(rms_env, rms_threshold, 1), na.rm = TRUE) * 1.08)
+  if (!all(is.finite(ylim_rms)) || diff(ylim_rms) <= 0) {
+    ylim_rms <- c(0, 1)
+  }
+
+  spectro_data <- tryCatch(
+    suppressWarnings(
+      seewave::spectro(
+        wave = wave,
+        f = wave@samp.rate,
+        wl = wl,
+        ovlp = ovlp,
+        plot = FALSE
+      )
+    ),
+    error = function(e) NULL
+  )
+
+  spectro_ok <- !is.null(spectro_data) &&
+    length(spectro_data$time) > 1L &&
+    length(spectro_data$freq) > 1L &&
+    all(dim(spectro_data$amp) == c(length(spectro_data$freq), length(spectro_data$time))) &&
+    any(is.finite(spectro_data$amp))
+
+  if (spectro_ok) {
+    spectro_amp <- spectro_data$amp
+    spectro_amp[!is.finite(spectro_amp)] <- -80
+    spectro_amp <- pmax(spectro_amp, -80)
+  }
+
+  palette <- if (requireNamespace("viridisLite", quietly = TRUE)) {
+    viridisLite::magma(256)
+  } else {
+    grDevices::colorRampPalette(c("black", "purple4", "orangered", "yellow"))(256)
+  }
+
+  graphics::par(
+    bg = "black",
+    fg = "white",
+    col.axis = "white",
+    col.lab = "white",
+    col.main = "white",
+    mfrow = c(2, 1),
+    oma = c(2.8, 0, 1, 0)
+  )
+
+  graphics::par(mar = c(1.1, 4.8, 1.1, 1.5))
+  graphics::plot(
+    time_points,
+    rms_env,
+    type = "l",
+    col = "red",
+    lwd = 1,
+    xlim = xlim,
+    ylim = ylim_rms,
+    xlab = "",
+    ylab = "RMS",
+    main = "",
+    xaxt = "n"
+  )
+  graphics::abline(h = rms_threshold, col = "green", lty = 2, lwd = 1)
+
+  if (!is.null(detections) && nrow(detections) > 0) {
+    onset_y <- stats::approx(time_points, rms_env, xout = detections$start_time, rule = 2)$y
+    offset_y <- stats::approx(time_points, rms_env, xout = detections$end_time, rule = 2)$y
+    graphics::points(detections$start_time, onset_y, col = "blueviolet", pch = 19)
+    graphics::points(detections$end_time, offset_y, col = "orange", pch = 19)
+  }
+
+  graphics::legend(
+    "topright",
+    legend = c("RMS", "Threshold", "Onset", "Offset"),
+    col = c("red", "green", "blueviolet", "orange"),
+    lty = c(1, 2, NA, NA),
+    pch = c(NA, NA, 19, 19),
+    bty = "n",
+    text.col = "white",
+    cex = 0.9
+  )
+
+  graphics::par(mar = c(3.6, 4.8, 0.7, 1.5))
+  if (spectro_ok) {
+    graphics::image(
+      x = spectro_data$time,
+      y = spectro_data$freq * 1000,
+      z = t(spectro_amp),
+      col = palette,
+      zlim = c(-80, 0),
+      xlim = xlim,
+      ylim = range(spectro_data$freq * 1000, finite = TRUE),
+      xlab = "",
+      ylab = "FREQUENCY (Hz)",
+      useRaster = TRUE
+    )
+  } else {
+    graphics::plot(
+      NA,
+      xlim = xlim,
+      ylim = c(0, wave@samp.rate / 2),
+      xlab = "",
+      ylab = "FREQUENCY (Hz)"
+    )
+  }
+
+  if (!is.null(detections) && nrow(detections) > 0) {
+    for (i in seq_len(nrow(detections))) {
+      graphics::abline(v = detections$start_time[i], col = "white", lty = 2, lwd = 1.2)
+      graphics::abline(v = detections$end_time[i], col = "white", lty = 2, lwd = 1.2)
+    }
+
+    label_col <- intersect(c("vocalization_label", "label"), names(detections))[1]
+    if (length(label_col) && !is.na(label_col)) {
+      usr <- graphics::par("usr")
+      label_x <- (detections$start_time + detections$end_time) / 2
+      label_y <- usr[4] - 0.04 * diff(usr[3:4])
+      graphics::text(
+        x = label_x,
+        y = label_y,
+        labels = detections[[label_col]],
+        col = "white",
+        cex = 0.8,
+        pos = 3,
+        xpd = NA
+      )
+    }
+  }
+
+  graphics::mtext("TIME", side = 1, outer = TRUE, line = 1.1, col = "white")
+}
+
+
+#' Combine a list of vocalization result data frames
+#'
+#' @description
+#' Removes NULL entries from results and row-binds the remaining data frames.
+#'
+#' @param results List of data frames or NULL elements
+#'
+#' @return A single data frame, or NULL if no valid results exist.
+#'
+#' @noRd
+#' @keywords internal
+combine_vocalization_results <- function(results) {
+  results <- results[!vapply(results, is.null, logical(1))]
+
+  if (!length(results)) {
+    return(NULL)
+  }
+
+  out <- do.call(rbind, results)
+  out <- as.data.frame(out, stringsAsFactors = FALSE)
+  rownames(out) <- NULL
+  out
+}
+
+
+#' Normalise a cores argument to a usable integer
+#'
+#' @description
+#' When cores is NULL, auto-detects available cores minus one. Otherwise
+#' coerces to integer and clamps to at least 1.
+#'
+#' @param cores NULL or a numeric value
+#'
+#' @return An integer core count.
+#'
+#' @noRd
+#' @keywords internal
+normalize_detection_cores <- function(cores) {
+  if (is.null(cores)) {
+    detected <- suppressWarnings(as.integer(parallel::detectCores()))
+    if (is.na(detected) || detected < 2L) {
+      return(1L)
+    }
+    return(max(1L, detected - 1L))
+  }
+
+  cores <- suppressWarnings(as.integer(cores))
+  if (is.na(cores) || cores < 1L) {
+    return(1L)
+  }
+
+  cores
+}
+
+
+#' Sanitize a label string for use as a file or directory name
+#'
+#' @description
+#' Replaces any character that is not a letter, digit, underscore, or hyphen
+#' with an underscore.
+#'
+#' @param x Character string to sanitize
+#'
+#' @return A sanitized character string.
+#'
+#' @noRd
+#' @keywords internal
+sanitize_detection_label <- function(x) {
+  gsub("[^A-Za-z0-9_-]", "_", x)
+}
+
+
+#' Extract a scalar character from a metadata column
+#'
+#' @description
+#' Returns the first non-NA element coerced to character, or a default value.
+#'
+#' @param x A vector
+#' @param default Default value when x is empty or NA. Default \code{NA_character_}
+#'
+#' @return A single character value.
+#'
+#' @noRd
+#' @keywords internal
+metadata_scalar <- function(x, default = NA_character_) {
+  if (!length(x) || is.na(x[1])) {
+    return(default)
+  }
+
+  as.character(x[1])
+}
+
+
+#' Extract a scalar numeric from a metadata column
+#'
+#' @description
+#' Returns the first non-NA element coerced to numeric, or NA_real_.
+#'
+#' @param x A vector
+#'
+#' @return A single numeric value.
+#'
+#' @noRd
+#' @keywords internal
+metadata_numeric_scalar <- function(x) {
+  if (!length(x) || is.na(x[1])) {
+    return(NA_real_)
+  }
+
+  as.numeric(x[1])
+}
+
+
+#' Extract a scalar integer from a metadata column
+#'
+#' @description
+#' Returns the first non-NA element coerced to integer, or NA_integer_.
+#'
+#' @param x A vector
+#'
+#' @return A single integer value.
+#'
+#' @noRd
+#' @keywords internal
+metadata_integer_scalar <- function(x) {
+  if (!length(x) || is.na(x[1])) {
+    return(NA_integer_)
+  }
+
+  as.integer(x[1])
+}
+
+
+#' Construct a detection error object
+#'
+#' @description
+#' Creates an S3 object of class \code{lys_detection_error} to capture file
+#' processing failures during parallel detection loops.
+#'
+#' @param file_path Character. Full path to the failed file
+#' @param session_label Character. Label of the session containing the file
+#' @param message Character. Error message
+#'
+#' @return An object of class \code{lys_detection_error}.
+#'
+#' @noRd
+#' @keywords internal
+new_detection_error <- function(file_path, session_label, message) {
+  structure(
+    list(
+      file_path = file_path,
+      filename = basename(file_path),
+      session_label = session_label,
+      message = message
+    ),
+    class = "lys_detection_error"
+  )
+}
+
+
+#' Test whether an object is a detection error
+#'
+#' @description
+#' Returns TRUE when x inherits from \code{lys_detection_error}.
+#'
+#' @param x Object to test
+#'
+#' @return Logical scalar.
+#'
+#' @noRd
+#' @keywords internal
+is_detection_error <- function(x) {
+  inherits(x, "lys_detection_error")
+}
+
+
+#' Resolve the LYS output directory
+#'
+#' @description
+#' Returns the normalised output_dir path, creating it if needed. When
+#' output_dir is NULL, falls back to the parent directory of base_path.
+#'
+#' @param base_path Character. LYS base path
+#' @param output_dir Character or NULL. Desired output directory
+#'
+#' @return A normalised absolute path string.
+#'
+#' @noRd
+#' @keywords internal
+resolve_lys_output_dir <- function(base_path, output_dir = NULL) {
+  if (!is.null(output_dir)) {
+    if (!is.character(output_dir) || length(output_dir) != 1L || is.na(output_dir) ||
+        !nzchar(output_dir)) {
+      stop("output_dir must be a single non-empty path.", call. = FALSE)
+    }
+
+    dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+    return(normalizePath(output_dir, mustWork = TRUE))
+  }
+
+  parent_dir <- dirname(normalizePath(base_path, mustWork = TRUE))
+  dir.create(parent_dir, recursive = TRUE, showWarnings = FALSE)
+  normalizePath(parent_dir, mustWork = TRUE)
 }

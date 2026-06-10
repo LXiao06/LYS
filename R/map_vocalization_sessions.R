@@ -1,3 +1,6 @@
+# Map Vocalization Sessions
+# Update date : Jun. 10, 2026
+
 #' Map labeled vocalizations across recording sessions
 #' @param lys A \code{lys} object with labels in \code{lys$vocalizations}.
 #' @param labels Character vector of labels to include. \code{NULL} uses all.
@@ -129,6 +132,19 @@ map_vocalization_sessions <- function(lys,
   invisible(lys)
 }
 
+#' Attach session metadata to a vocalization data frame
+#'
+#' @description
+#' Joins session-level metadata columns (session_id, session_label, etc.) from
+#' lys$metadata into the vocalizations data frame when they are missing.
+#'
+#' @param lys A \code{lys} object
+#' @param vocalizations Data frame of vocalization detections
+#'
+#' @return The vocalizations data frame with metadata columns added.
+#'
+#' @noRd
+#' @keywords internal
 attach_vocalization_metadata <- function(lys, vocalizations) {
   metadata <- lys$metadata
   metadata_cols <- c(
@@ -172,6 +188,20 @@ attach_vocalization_metadata <- function(lys, vocalizations) {
   vocalizations
 }
 
+#' Compute absolute and session-relative timestamps for vocalizations
+#'
+#' @description
+#' Adds absolute_start, absolute_end, session_relative_start,
+#' session_relative_end, and session_relative_mid columns to the vocalization
+#' data frame based on the recording start time of each WAV file.
+#'
+#' @param vocalizations Data frame of vocalization detections with metadata
+#' @param tz Character. Timezone string. Default \code{"UTC"}
+#'
+#' @return The vocalizations data frame with timestamp columns added.
+#'
+#' @noRd
+#' @keywords internal
 compute_vocalization_timestamps <- function(vocalizations, tz = "UTC") {
   recording_start <- vapply(
     seq_len(nrow(vocalizations)),
@@ -200,7 +230,7 @@ compute_vocalization_timestamps <- function(vocalizations, tz = "UTC") {
   vocalizations$absolute_start <- vocalizations$file_recording_start + vocalizations$start_time
   vocalizations$absolute_end <- vocalizations$file_recording_start + vocalizations$end_time
 
-  session_origin <- ave(
+  session_origin <- stats::ave(
     as.numeric(vocalizations$file_recording_start),
     vocalizations$session_label,
     FUN = min
@@ -219,6 +249,20 @@ compute_vocalization_timestamps <- function(vocalizations, tz = "UTC") {
   as.data.frame(vocalizations, stringsAsFactors = FALSE)
 }
 
+#' Build a label-to-color mapping
+#'
+#' @description
+#' Returns a named character vector of colors for each unique label, either
+#' from the user-supplied colors argument or auto-generated via
+#' \code{grDevices::hcl.colors()}.
+#'
+#' @param labels Character vector of unique labels
+#' @param colors Named character vector or NULL. User-supplied color overrides
+#'
+#' @return A named character vector mapping labels to colors.
+#'
+#' @noRd
+#' @keywords internal
 make_label_colors <- function(labels, colors = NULL) {
   labels <- sort(unique(labels))
   if (!is.null(colors)) {
@@ -242,6 +286,21 @@ make_label_colors <- function(labels, colors = NULL) {
   stats::setNames(palette[seq_along(labels)], labels)
 }
 
+#' Draw the vocalization session map
+#'
+#' @description
+#' Renders a timeline plot with one row per session and colored rectangles
+#' representing labeled vocalizations, plus a scale bar.
+#'
+#' @param mapped Data frame from \code{compute_vocalization_timestamps()}
+#' @param label_col Character. Column holding the vocalization label
+#' @param color_map Named character vector of label colors
+#' @param scale_bar_seconds Numeric or NULL. Scale bar length in seconds
+#'
+#' @return NULL (called for its side effect).
+#'
+#' @noRd
+#' @keywords internal
 plot_vocalization_session_map <- function(mapped,
                                           label_col,
                                           color_map,
@@ -309,6 +368,18 @@ plot_vocalization_session_map <- function(mapped,
   }
 }
 
+#' Choose an appropriate scale bar duration
+#'
+#' @description
+#' Selects a human-readable scale bar length that fits comfortably within
+#' the plot x-axis range.
+#'
+#' @param max_time Numeric. Maximum time value on the x-axis (seconds)
+#'
+#' @return A numeric scale bar duration in seconds.
+#'
+#' @noRd
+#' @keywords internal
 choose_scale_bar_seconds <- function(max_time) {
   if (!is.finite(max_time) || max_time <= 0) {
     return(NA_real_)
@@ -328,6 +399,18 @@ choose_scale_bar_seconds <- function(max_time) {
   max_time
 }
 
+#' Format a duration as a human-readable label
+#'
+#' @description
+#' Converts seconds to a compact string, choosing hours, minutes, or seconds
+#' depending on magnitude.
+#'
+#' @param seconds Numeric. Duration in seconds
+#'
+#' @return A character string such as \code{"5 min"} or \code{"30 s"}.
+#'
+#' @noRd
+#' @keywords internal
 format_duration_label <- function(seconds) {
   if (seconds >= 3600 && seconds %% 3600 == 0) {
     return(sprintf("%d h", seconds / 3600))

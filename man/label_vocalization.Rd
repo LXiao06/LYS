@@ -21,43 +21,60 @@ label_vocalization(
 )
 }
 \arguments{
-\item{lys}{A \\code{lys} object with detected vocalizations and template
+\item{lys}{A \code{lys} object with detected vocalizations and template
 matches.}
 
-\item{rules}{Data frame with columns \\code{template_type}, \\code{label},
-\\code{min_matches}, and \\code{priority}.}
+\item{rules}{Data frame with columns \code{template_type}, \code{label},
+\code{min_matches}, and \code{priority}.}
 
 \item{default_label}{Character. Label assigned when no rule matches.
-Default \\code{"TBD"}.}
+Default \code{"TBD"}.}
 
-\item{multi_label}{Logical. When \\code{TRUE}, vocalizations that satisfy
-multiple rules receive a compound label (e.g. \\code{"SongBout;BeggingCall"})
-instead of only the highest-priority label. Default \\code{FALSE}.}
+\item{multi_label}{Logical. When \code{TRUE}, vocalizations that satisfy
+multiple rules receive a compound label (e.g. \code{"SongBout;BeggingCall"})
+instead of only the highest-priority label. Default \code{FALSE}.}
 
-\item{files}{Character vector of WAV filenames to relabel. \\code{NULL}
+\item{files}{Character vector of WAV filenames to relabel. \code{NULL}
 relabels all vocalizations. Other rows keep their existing labels.}
 
-\item{cores}{Integer. Number of parallel workers. \\code{NULL} auto-detects.}
+\item{cores}{Integer. Number of parallel workers. \code{NULL} auto-detects.}
 
 \item{save_plot}{Logical. Save review spectrograms to disk. Default
-\\code{TRUE}.}
+\code{TRUE}.}
 
-\item{plot_percent}{Numeric. Percentage of files to plot. Default \\code{100}.}
+\item{plot_percent}{Numeric. Percentage of files to plot. Default \code{100}.}
 
-\item{output_dir}{Character. Output directory; \\code{NULL} uses default.}
+\item{output_dir}{Character. Output directory; \code{NULL} uses default.}
 
-\item{wl}{Integer. Spectrogram window length in samples. Default \\code{1024}.}
+\item{wl}{Integer. Spectrogram window length in samples. Default \code{1024}.}
 
-\item{ovlp}{Numeric. Spectrogram overlap percentage. Default \\code{50}.}
+\item{ovlp}{Numeric. Spectrogram overlap percentage. Default \code{50}.}
 
-\item{freq_range}{Numeric vector \\code{c(min, max)} in kHz for RMS bandpass
-filter. Default \\code{c(3, 5)}.}
+\item{freq_range}{Numeric vector \code{c(min, max)} in kHz for RMS bandpass
+filter. Default \code{c(3, 5)}.}
 
-\item{verbose}{Logical. Print progress messages. Default \\code{TRUE}.}
+\item{verbose}{Logical. Print progress messages. Default \code{TRUE}.}
 }
 \value{
-The updated \\code{lys} object (invisibly).
+The updated \code{lys} object (invisibly).
 }
 \description{
 Label detected vocalizations using template-match rules
+}
+\details{
+Rules are evaluated per vocalization by counting template detections that
+fall within the vocalization's time window, then applying the first
+matching rule (lowest priority number). When \code{multi_label = TRUE},
+all matching labels are concatenated with \code{";"}.
+}
+\examples{
+\dontrun{
+rules <- data.frame(
+  template_type = c("song_bout", "innate_call"),
+  label         = c("SongBout", "BeggingCall"),
+  min_matches   = c(2L, 1L)
+)
+lys <- label_vocalization(lys, rules = rules)
+}
+
 }

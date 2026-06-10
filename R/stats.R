@@ -1,12 +1,7 @@
-# =============================================================================
-# LYS — Vocalization sequence statistics
-#   plot_reciprocal_latency()      – reciprocal histogram + embedded stats
-#   permutation_transition_test()  – label-shuffle randomisation test
-#   conditional_rate_ratio()       – foreground vs background event rate ratio
-# =============================================================================
+# Vocalization Sequence Statistics
+# Update date : Jun. 10, 2026
 
-
-# ── plot_reciprocal_latency ───────────────────────────────────────────────────
+# Section: plot_reciprocal_latency ----------------------------------------
 
 #' Plot Reciprocal Onset Latency Distributions
 #'
@@ -45,7 +40,7 @@
 #'   \item{\code{latencies_2_to_1}}{Matched-pair data frame for
 #'     \code{label2} -> \code{label1}.}
 #'   \item{\code{binom_test}}{Result of \code{binom.test()} testing whether
-#'     \code{label1->label2} accounts for more than 50\% of all matched pairs
+#'     \code{label1->label2} accounts for more than 50% of all matched pairs
 #'     (one-sided, H1: p > 0.5).}
 #'   \item{\code{ks_test}}{Result of \code{ks.test()} comparing the two
 #'     distributions.}
@@ -76,7 +71,7 @@ plot_reciprocal_latency <- function(data,
                                     session_col      = "session_label",
                                     require_adjacent = TRUE) {
 
-  # Compute 1 -> 2
+  # Compute latencies from label1 to label2
   lat1 <- compute_onset_latency(
     data             = data,
     preceding_label  = label1,
@@ -89,7 +84,7 @@ plot_reciprocal_latency <- function(data,
     require_adjacent = require_adjacent
   )
 
-  # Compute 2 -> 1
+  # Compute latencies from label2 to label1
   lat2 <- compute_onset_latency(
     data             = data,
     preceding_label  = label2,
@@ -105,13 +100,13 @@ plot_reciprocal_latency <- function(data,
   brks <- seq(0, window_sec, length.out = breaks + 1)
 
   h1_counts <- if (nrow(lat1) > 0) {
-    hist(lat1$latency_sec, breaks = brks, plot = FALSE)$counts
+    graphics::hist(lat1$latency_sec, breaks = brks, plot = FALSE)$counts
   } else {
     0
   }
 
   h2_counts <- if (nrow(lat2) > 0) {
-    hist(lat2$latency_sec, breaks = brks, plot = FALSE)$counts
+    graphics::hist(lat2$latency_sec, breaks = brks, plot = FALSE)$counts
   } else {
     0
   }
@@ -119,7 +114,7 @@ plot_reciprocal_latency <- function(data,
   y_max <- max(c(h1_counts, h2_counts, 0))
   if (y_max == 0) y_max <- 1
 
-  # --- Distribution comparison tests ---
+  # Compare distributions using statistical tests
   n1      <- nrow(lat1)
   n2      <- nrow(lat2)
   n_total <- n1 + n2
@@ -131,16 +126,16 @@ plot_reciprocal_latency <- function(data,
 
   fmt_p <- function(p) if (p < 0.001) "< 0.001" else sprintf("= %.3f", p)
 
-  # Binomial test: is label1->label2 more than 50% of all pairs?
+  # Test if label1 to label2 transitions exceed 50%
   if (n_total > 0L) {
-    binom_test <- binom.test(x = n1, n = n_total, p = 0.5,
-                             alternative = "greater")
+    binom_test <- stats::binom.test(x = n1, n = n_total, p = 0.5,
+                                    alternative = "greater")
   }
 
   if (can_test) {
-    ks_test     <- ks.test(lat1$latency_sec, lat2$latency_sec)
-    wilcox_test <- wilcox.test(lat1$latency_sec, lat2$latency_sec,
-                               exact = FALSE, alternative = "two.sided")
+    ks_test     <- stats::ks.test(lat1$latency_sec, lat2$latency_sec)
+    wilcox_test <- stats::wilcox.test(lat1$latency_sec, lat2$latency_sec,
+                                      exact = FALSE, alternative = "two.sided")
 
     message(
       sprintf("\nReciprocal latency analysis: %s <-> %s\n", label1, label2),
@@ -166,10 +161,10 @@ plot_reciprocal_latency <- function(data,
     )
   }
 
-  # --- Bottom annotation: plain-language interpretation ---
+  # Generate plain-language interpretation
   sentences <- character(0)
 
-  # Sentence 1: directional count asymmetry (binomial)
+  # Test directional count asymmetry
   if (!is.null(binom_test)) {
     dominant <- if (n1 > n2) paste(label1, "->", label2) else paste(label2, "->", label1)
     n_dom    <- max(n1, n2)
@@ -185,7 +180,7 @@ plot_reciprocal_latency <- function(data,
     }
   }
 
-  # Sentence 2: latency distribution difference
+  # Test latency distribution difference
   if (can_test) {
     ks_sig  <- ks_test$p.value     < 0.05
     wil_sig <- wilcox_test$p.value < 0.05
@@ -212,58 +207,58 @@ plot_reciprocal_latency <- function(data,
 
   y_plot_max <- y_max
 
-  # outer = TRUE requires oma bottom margin
-  old_par <- par(mfrow = c(1, 2),
-                 mar  = c(4, 4, 4, 1) + 0.1,
-                 oma  = c(if (!is.null(bottom_note)) 2.5 else 0.5, 0, 0, 0))
-  on.exit(par(old_par))
+  # Set margins for side-by-side plots
+  old_par <- graphics::par(mfrow = c(1, 2),
+                           mar  = c(4, 4, 4, 1) + 0.1,
+                           oma  = c(if (!is.null(bottom_note)) 2.5 else 0.5, 0, 0, 0))
+  on.exit(graphics::par(old_par))
 
-  # Helper: annotate panel with sample size
+  # Annotate panel with sample size
   .annotate_panel <- function(n) {
-    mtext(sprintf("n = %d", n), side = 3, line = 0.3, adj = 1,
-          cex = 0.78, col = "gray40")
+    graphics::mtext(sprintf("n = %d", n), side = 3, line = 0.3, adj = 1,
+                    cex = 0.78, col = "gray40")
   }
 
-  # Plot 1 -> 2
+  # Plot label1 to label2 latencies
   if (nrow(lat1) > 0) {
-    hist(lat1$latency_sec,
-         breaks = brks,
-         xlim   = c(0, window_sec),
-         ylim   = c(0, y_plot_max),
-         main   = paste(label1, "->", label2, "latency"),
-         xlab   = "Latency (s)",
-         col    = "gray80",
-         border = "white")
+    graphics::hist(lat1$latency_sec,
+                   breaks = brks,
+                   xlim   = c(0, window_sec),
+                   ylim   = c(0, y_plot_max),
+                   main   = paste(label1, "->", label2, "latency"),
+                   xlab   = "Latency (s)",
+                   col    = "gray80",
+                   border = "white")
     .annotate_panel(nrow(lat1))
   } else {
-    plot(1, type = "n", xlim = c(0, window_sec), ylim = c(0, y_plot_max),
-         main = paste(label1, "->", label2, "latency"),
-         xlab = "Latency (s)", ylab = "Frequency")
-    text(window_sec / 2, y_plot_max / 2, "No events found")
+    graphics::plot(1, type = "n", xlim = c(0, window_sec), ylim = c(0, y_plot_max),
+                   main = paste(label1, "->", label2, "latency"),
+                   xlab = "Latency (s)", ylab = "Frequency")
+    graphics::text(window_sec / 2, y_plot_max / 2, "No events found")
   }
 
-  # Plot 2 -> 1
+  # Plot label2 to label1 latencies
   if (nrow(lat2) > 0) {
-    hist(lat2$latency_sec,
-         breaks = brks,
-         xlim   = c(0, window_sec),
-         ylim   = c(0, y_plot_max),
-         main   = paste(label2, "->", label1, "latency"),
-         xlab   = "Latency (s)",
-         col    = "gray80",
-         border = "white")
+    graphics::hist(lat2$latency_sec,
+                   breaks = brks,
+                   xlim   = c(0, window_sec),
+                   ylim   = c(0, y_plot_max),
+                   main   = paste(label2, "->", label1, "latency"),
+                   xlab   = "Latency (s)",
+                   col    = "gray80",
+                   border = "white")
     .annotate_panel(nrow(lat2))
   } else {
-    plot(1, type = "n", xlim = c(0, window_sec), ylim = c(0, y_plot_max),
-         main = paste(label2, "->", label1, "latency"),
-         xlab = "Latency (s)", ylab = "Frequency")
-    text(window_sec / 2, y_plot_max / 2, "No events found")
+    graphics::plot(1, type = "n", xlim = c(0, window_sec), ylim = c(0, y_plot_max),
+                   main = paste(label2, "->", label1, "latency"),
+                   xlab = "Latency (s)", ylab = "Frequency")
+    graphics::text(window_sec / 2, y_plot_max / 2, "No events found")
   }
 
-  # Single bottom annotation spanning the full figure
+  # Render bottom annotation across both panels
   if (!is.null(bottom_note)) {
-    mtext(bottom_note, side = 1, line = 0.8, outer = TRUE,
-          cex = 0.75, col = "gray20", font = 3)
+    graphics::mtext(bottom_note, side = 1, line = 0.8, outer = TRUE,
+                    cex = 0.75, col = "gray20", font = 3)
   }
 
   invisible(list(
@@ -276,7 +271,7 @@ plot_reciprocal_latency <- function(data,
 }
 
 
-# ── permutation_transition_test ───────────────────────────────────────────────
+# Section: permutation_transition_test -------------------------------------
 
 #' Permutation Test for Directional Transition Asymmetry
 #'
@@ -345,7 +340,7 @@ permutation_transition_test <- function(data,
 
   if (!is.null(seed)) set.seed(seed)
 
-  # Helper: count matched pairs in one direction for a given data frame
+  # Count matched pairs in one direction
   .count_pairs <- function(df, pre, fol) {
     nrow(compute_onset_latency(
       data             = df,
@@ -360,7 +355,7 @@ permutation_transition_test <- function(data,
     ))
   }
 
-  # Observed asymmetry
+  # Compute observed asymmetry
   obs_n1  <- .count_pairs(data, label1, label2)
   obs_n2  <- .count_pairs(data, label2, label1)
   obs_stat <- obs_n1 - obs_n2
@@ -370,7 +365,7 @@ permutation_transition_test <- function(data,
     label1, label2, label2, label1, obs_n1, obs_n2, obs_stat, n_perm
   ))
 
-  # Only shuffle labels that are label1 or label2; preserve timing & session
+  # Shuffle labels to generate null distribution
   target_rows <- data[[label_col]] %in% c(label1, label2)
 
   null_dist <- vapply(seq_len(n_perm), function(i) {
@@ -387,20 +382,20 @@ permutation_transition_test <- function(data,
   message(sprintf("  p (one-sided) %s\n", fmt_p(p_val)))
 
   if (plot) {
-    hist(null_dist,
-         breaks = 30,
-         col    = "gray80",
-         border = "white",
-         main   = sprintf("Permutation null: %s <-> %s", label1, label2),
-         xlab   = "Asymmetry score (n1 - n2)",
-         ylab   = "Count")
-    abline(v   = obs_stat,
-           col = if (p_val < 0.05) "firebrick" else "steelblue",
-           lwd = 2, lty = 2)
-    legend("topright",
-           legend = sprintf("Observed = %+d\np %s", obs_stat, fmt_p(p_val)),
-           bty    = "n", cex = 0.85,
-           text.col = if (p_val < 0.05) "firebrick" else "steelblue")
+    graphics::hist(null_dist,
+                   breaks = 30,
+                   col    = "gray80",
+                   border = "white",
+                   main   = sprintf("Permutation null: %s <-> %s", label1, label2),
+                   xlab   = "Asymmetry score (n1 - n2)",
+                   ylab   = "Count")
+    graphics::abline(v   = obs_stat,
+                     col = if (p_val < 0.05) "firebrick" else "steelblue",
+                     lwd = 2, lty = 2)
+    graphics::legend("topright",
+                     legend = sprintf("Observed = %+d\np %s", obs_stat, fmt_p(p_val)),
+                     bty    = "n", cex = 0.85,
+                     text.col = if (p_val < 0.05) "firebrick" else "steelblue")
   }
 
   invisible(list(
@@ -411,7 +406,7 @@ permutation_transition_test <- function(data,
 }
 
 
-# ── conditional_rate_ratio ────────────────────────────────────────────────────
+# Section: conditional_rate_ratio ------------------------------------------
 
 #' Conditional Rate Ratio for Vocalization Transitions
 #'
@@ -421,7 +416,7 @@ permutation_transition_test <- function(data,
 #' (the \emph{foreground rate}) compared with the background rate of
 #' \code{response_label} outside those windows.  The ratio
 #' \eqn{\lambda_{fg} / \lambda_{bg}} > 1 indicates that the trigger elevates
-#' the response rate.  A 95\% confidence interval is obtained via
+#' the response rate.  A 95% confidence interval is obtained via
 #' Poisson rate-ratio approximation.  Both the forward
 #' (\code{trigger -> response}) and reverse (\code{response -> trigger})
 #' directions are computed so that directional asymmetry can be assessed.
@@ -445,7 +440,7 @@ permutation_transition_test <- function(data,
 #'   \item{\code{rate_fg}}{Foreground rate (events / s).}
 #'   \item{\code{rate_bg}}{Background rate (events / s).}
 #'   \item{\code{rate_ratio}}{rate_fg / rate_bg.}
-#'   \item{\code{ci_low,ci_high}}{95\% CI on the rate ratio.}
+#'   \item{\code{ci_low,ci_high}}{95% CI on the rate ratio.}
 #'   \item{\code{p_value}}{Two-sided p-value (exact Poisson test).}
 #' }
 #'
@@ -469,7 +464,7 @@ conditional_rate_ratio <- function(data,
                                    end_col     = "session_relative_end",
                                    session_col = "session_label") {
 
-  # Internal helper: compute rate ratio for trigger -> response
+  # Compute rate ratio in one direction
   .crr_one_direction <- function(trigger, response) {
     sessions    <- unique(data[[session_col]])
     n_triggers  <- 0L
@@ -489,8 +484,7 @@ conditional_rate_ratio <- function(data,
 
       sess_duration <- max(sd[[end_col]]) - min(sd[[start_col]])
 
-      # Build foreground intervals: [trig_end, trig_end + window_sec]
-      # Clipped to session bounds
+      # Build foreground intervals
       sess_end <- max(sd[[end_col]])
       fg_intervals <- lapply(trig_rows, function(ti) {
         t0 <- sd[[end_col]][ti]
@@ -516,7 +510,7 @@ conditional_rate_ratio <- function(data,
 
       t_fg_sess <- sum(fg_mat[, 2] - fg_mat[, 1])
 
-      # Classify each response event as foreground or background
+      # Classify response events as foreground or background
       for (ri in resp_rows) {
         t_resp <- sd[[start_col]][ri]
         in_fg  <- any(t_resp >= fg_mat[, 1] & t_resp <= fg_mat[, 2])
@@ -535,10 +529,9 @@ conditional_rate_ratio <- function(data,
     rate_fg <- if (t_fg_sec > 0) n_fg / t_fg_sec else NA_real_
     rate_bg <- if (t_bg_sec > 0) n_bg / t_bg_sec else NA_real_
 
-    # Exact Poisson rate-ratio test (poisson.test compares two Poisson counts
-    # given their exposure times)
+    # Perform exact Poisson rate ratio test
     ptest <- tryCatch(
-      poisson.test(c(n_fg, n_bg), c(t_fg_sec, t_bg_sec)),
+      stats::poisson.test(c(n_fg, n_bg), c(t_fg_sec, t_bg_sec)),
       error = function(e) NULL
     )
 

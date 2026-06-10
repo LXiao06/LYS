@@ -7,13 +7,14 @@
 visualize_song(x, ...)
 }
 \arguments{
-\item{x}{Input passed to \code{ASAP::visualize_song()}.}
+\item{x}{Input passed to \code{ASAP::visualize_song()}}
 
-\item{...}{Additional arguments forwarded to \code{ASAP::visualize_song()}.}
+\item{...}{Additional arguments forwarded to \code{ASAP::visualize_song()}}
 }
 \value{
 Whatever \code{ASAP::visualize_song()} returns.
 }
 \description{
-Visualize a song via ASAP
+Thin wrapper around \code{ASAP::visualize_song()} that ensures the ASAP
+package is available before forwarding all arguments.
 }

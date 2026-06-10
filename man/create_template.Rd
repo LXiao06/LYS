@@ -2,19 +2,110 @@
 % Please edit documentation in R/template_detection.R
 \name{create_template}
 \alias{create_template}
+\alias{create_template.default}
+\alias{create_template.lys}
 \title{Create a vocalization template}
 \usage{
 create_template(x, ...)
+
+\method{create_template}{default}(
+  x,
+  template_name,
+  start_time = NULL,
+  end_time = NULL,
+  freq_min = 0,
+  freq_max = 15,
+  threshold = 0.6,
+  write_template = FALSE,
+  template_dir = NULL,
+  ...
+)
+
+\method{create_template}{lys}(
+  x,
+  template_name,
+  template_type,
+  wav_path = NULL,
+  index = NULL,
+  start_time = NULL,
+  end_time = NULL,
+  freq_min = 0,
+  freq_max = 15,
+  threshold = 0.6,
+  write_template = FALSE,
+  output_dir = NULL,
+  notes = NA_character_,
+  verbose = TRUE,
+  ...
+)
 }
 \arguments{
-\item{x}{A \\code{lys} object or a path to a WAV file.}
+\item{x}{A \code{lys} object or a path to a WAV file}
 
-\item{...}{Additional arguments passed to the method.}
+\item{...}{Additional arguments forwarded to \code{monitoR::makeCorTemplate()}}
+
+\item{template_name}{Character. Unique name for the template}
+
+\item{start_time}{Numeric. Start time (seconds) of the template segment.
+Must be supplied together with \code{end_time}}
+
+\item{end_time}{Numeric. End time (seconds) of the template segment}
+
+\item{freq_min}{Numeric. Lower frequency bound in kHz. Default \code{0}}
+
+\item{freq_max}{Numeric. Upper frequency bound in kHz. Default \code{15}}
+
+\item{threshold}{Numeric. Correlation score cutoff in \eqn{[0, 1]}.
+Default \code{0.6}}
+
+\item{write_template}{Logical. Write the template to disk. Default
+\code{FALSE}}
+
+\item{template_dir}{Character. Directory for saved templates; \code{NULL}
+uses the WAV file directory (default method) or a standard templates
+subdirectory (LYS method)}
+
+\item{template_type}{Character. Template type label; must be one of
+\code{lys$templates$allowed_types} (LYS method only)}
+
+\item{wav_path}{Character. Path to the WAV file; overrides \code{index}
+(LYS method only)}
+
+\item{index}{Integer. Metadata row index of the WAV file to use when
+\code{wav_path} is \code{NULL} (LYS method only)}
+
+\item{output_dir}{Character. Root output directory; \code{NULL} uses the
+default location (LYS method only)}
+
+\item{notes}{Character. Optional notes stored in the template registry
+(LYS method only)}
+
+\item{verbose}{Logical. Print a creation message. Default \code{TRUE} (LYS
+method only)}
 }
 \value{
-For \\code{lys} input, the updated object; for a WAV path, a
-\\code{TemplateList} object.
+For \code{lys} input, the updated object (invisibly). For a WAV
+path, a \code{TemplateList} object.
 }
 \description{
-Create a vocalization template
+Creates a correlation-based vocalization template from a WAV file using
+the \pkg{monitoR} package. For a \code{lys} object, the template is stored
+in the registry and can later be applied with \code{\link{detect_template}}.
+}
+\examples{
+\dontrun{
+# Single WAV file
+tmpl <- create_template("song.wav",
+  template_name = "SongBout1",
+  start_time = 1.2, end_time = 2.5
+)
+
+# LYS object
+lys <- create_template(lys,
+  template_name = "SongBout1",
+  template_type = "song_bout",
+  index = 3
+)
+}
+
 }

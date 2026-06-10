@@ -1,67 +1,70 @@
-check_template_dependencies <- function() {
-  missing <- c(
-    if (!requireNamespace("monitoR", quietly = TRUE)) "monitoR",
-    if (!requireNamespace("tuneR", quietly = TRUE)) "tuneR"
-  )
-
-  if (length(missing)) {
-    stop(
-      sprintf(
-        "Template detection requires these packages to be installed: %s",
-        paste(missing, collapse = ", ")
-      ),
-      call. = FALSE
-    )
-  }
-}
+# Template Detection
+# Update date : Jun. 10, 2026
 
 #' Create a vocalization template
-#' @param x A \\code{lys} object or a path to a WAV file.
-#' @param ... Additional arguments passed to the method.
-#' @return For \\code{lys} input, the updated object; for a WAV path, a
-#'   \\code{TemplateList} object.
+#'
+#' @description
+#' Creates a correlation-based vocalization template from a WAV file using
+#' the \pkg{monitoR} package. For a \code{lys} object, the template is stored
+#' in the registry and can later be applied with \code{\link{detect_template}}.
+#'
+#' @param x A \code{lys} object or a path to a WAV file
+#' @param template_name Character. Unique name for the template
+#' @param start_time Numeric. Start time (seconds) of the template segment.
+#'   Must be supplied together with \code{end_time}
+#' @param end_time Numeric. End time (seconds) of the template segment
+#' @param freq_min Numeric. Lower frequency bound in kHz. Default \code{0}
+#' @param freq_max Numeric. Upper frequency bound in kHz. Default \code{15}
+#' @param threshold Numeric. Correlation score cutoff in \eqn{[0, 1]}.
+#'   Default \code{0.6}
+#' @param write_template Logical. Write the template to disk. Default
+#'   \code{FALSE}
+#' @param template_dir Character. Directory for saved templates; \code{NULL}
+#'   uses the WAV file directory (default method) or a standard templates
+#'   subdirectory (LYS method)
+#' @param template_type Character. Template type label; must be one of
+#'   \code{lys$templates$allowed_types} (LYS method only)
+#' @param wav_path Character. Path to the WAV file; overrides \code{index}
+#'   (LYS method only)
+#' @param index Integer. Metadata row index of the WAV file to use when
+#'   \code{wav_path} is \code{NULL} (LYS method only)
+#' @param output_dir Character. Root output directory; \code{NULL} uses the
+#'   default location (LYS method only)
+#' @param notes Character. Optional notes stored in the template registry
+#'   (LYS method only)
+#' @param verbose Logical. Print a creation message. Default \code{TRUE} (LYS
+#'   method only)
+#' @param ... Additional arguments forwarded to \code{monitoR::makeCorTemplate()}
+#'
+#' @return For \code{lys} input, the updated object (invisibly). For a WAV
+#'   path, a \code{TemplateList} object.
+#'
+#' @examples
+#' \dontrun{
+#' # Single WAV file
+#' tmpl <- create_template("song.wav",
+#'   template_name = "SongBout1",
+#'   start_time = 1.2, end_time = 2.5
+#' )
+#'
+#' # LYS object
+#' lys <- create_template(lys,
+#'   template_name = "SongBout1",
+#'   template_type = "song_bout",
+#'   index = 3
+#' )
+#' }
+#'
+#' @rdname create_template
 #' @export
 create_template <- function(x, ...) {
   UseMethod("create_template")
 }
 
-ensure_template_registry_slots <- function(x) {
-  if (is.null(x$templates$template_list)) {
-    x$templates$template_list <- list()
-  }
-  if (is.null(x$templates$template_matches)) {
-    x$templates$template_matches <- list()
-  }
-  if (is.null(x$templates$matches)) {
-    x$templates$matches <- x$templates$template_matches
-  }
 
-  required_cols <- data.frame(
-    template_name = character(),
-    template_type = character(),
-    wav_path = character(),
-    start_time = numeric(),
-    end_time = numeric(),
-    duration = numeric(),
-    freq_min = numeric(),
-    freq_max = numeric(),
-    detection_threshold = numeric(),
-    notes = character(),
-    created_at = as.POSIXct(character()),
-    stringsAsFactors = FALSE
-  )
-
-  missing_cols <- setdiff(names(required_cols), names(x$templates$template_info))
-  for (col in missing_cols) {
-    x$templates$template_info[[col]] <- rep(required_cols[[col]][NA_integer_], nrow(x$templates$template_info))
-  }
-  x$templates$template_info <- x$templates$template_info[, names(required_cols), drop = FALSE]
-
-  x
-}
-
+#' @rdname create_template
 #' @export
-create_template.default <- function(x,
+create_template.default <- function(x,   # x is WAV file path
                                     template_name,
                                     start_time = NULL,
                                     end_time = NULL,
@@ -134,8 +137,10 @@ create_template.default <- function(x,
   template
 }
 
+
+#' @rdname create_template
 #' @export
-create_template.lys <- function(x,
+create_template.lys <- function(x,   # x is LYS object
                                 template_name,
                                 template_type,
                                 wav_path = NULL,
@@ -226,59 +231,63 @@ create_template.lys <- function(x,
   invisible(x)
 }
 
+
 #' Run template-based vocalization detection
-#' @param x A \\code{lys} object or a path to a WAV file.
-#' @param ... Additional arguments passed to the method.
-#' @return For \\code{lys} input, the updated object; for a WAV path, a
-#'   data frame of detections.
+#'
+#' @description
+#' Runs correlation-based template detection across a WAV file or all files
+#' in a LYS object, using the \pkg{monitoR} package. Detections are stored
+#' in \code{lys$templates$template_matches} (LYS method).
+#'
+#' @param x A \code{lys} object or a path to a WAV file
+#' @param template A \code{TemplateList} object or a list of them (default
+#'   method), or \code{NULL} to use all stored templates (LYS method)
+#' @param cor.method Character. Correlation method passed to
+#'   \code{monitoR::corMatch()}. Default \code{"pearson"}
+#' @param proximity_window Numeric or NULL. Within this window (seconds),
+#'   only the highest-scoring detection is kept per template. \code{NULL}
+#'   disables filtering
+#' @param plot Logical. Draw detection plots interactively. Default \code{TRUE}
+#' @param save_plot Logical. Save detection plots to disk. Default \code{FALSE}
+#'   (default method), \code{TRUE} (LYS method)
+#' @param plot_dir Character. Directory for saved plots (default method only)
+#' @param template_name Character vector. Names of stored templates to run;
+#'   \code{NULL} runs all (LYS method only)
+#' @param session Character or integer vector. Sessions to restrict detection
+#'   to (LYS method only)
+#' @param indices Integer vector. File indices within a session to process
+#'   (LYS method only)
+#' @param threshold Named numeric vector or scalar to override stored template
+#'   cutoffs (LYS method only)
+#' @param cores Integer. Number of parallel workers (LYS method only)
+#' @param plot_percent Numeric. Percentage of files to plot (LYS method only)
+#' @param output_dir Character. Root output directory (LYS method only)
+#' @param verbose Logical. Print progress messages. Default \code{TRUE} (LYS
+#'   method only)
+#' @param ... Additional arguments (currently unused)
+#'
+#' @return For \code{lys} input, the updated object (invisibly). For a WAV
+#'   path, a data frame of detections or \code{NULL}.
+#'
+#' @examples
+#' \dontrun{
+#' # Single WAV file
+#' hits <- detect_template("song.wav", template = tmpl)
+#'
+#' # LYS object (uses all stored templates)
+#' lys <- detect_template(lys)
+#' }
+#'
+#' @rdname detect_template
 #' @export
 detect_template <- function(x, ...) {
   UseMethod("detect_template")
 }
 
-filter_template_peaks <- function(peaks, proximity_window = NULL) {
-  if (is.null(proximity_window)) {
-    return(peaks)
-  }
 
-  for (template_name in names(peaks@detections)) {
-    detections <- peaks@detections[[template_name]]
-    if (is.null(detections) || !nrow(detections)) {
-      next
-    }
-
-    detections <- detections[order(detections$time), , drop = FALSE]
-    group_ids <- integer(nrow(detections))
-    group_ids[1] <- 1L
-    anchor_time <- detections$time[1]
-    current_group <- 1L
-
-    if (nrow(detections) > 1L) {
-      for (i in 2:nrow(detections)) {
-        if (detections$time[i] - anchor_time > proximity_window) {
-          current_group <- current_group + 1L
-          anchor_time <- detections$time[i]
-        }
-        group_ids[i] <- current_group
-      }
-    }
-
-    keep <- unlist(
-      tapply(
-        seq_len(nrow(detections)),
-        group_ids,
-        function(idx) idx[which.max(detections$score[idx])]
-      ),
-      use.names = FALSE
-    )
-    peaks@detections[[template_name]] <- detections[sort(keep), , drop = FALSE]
-  }
-
-  peaks
-}
-
+#' @rdname detect_template
 #' @export
-detect_template.default <- function(x,
+detect_template.default <- function(x,   # x is WAV file path
                                     template,
                                     cor.method = "pearson",
                                     proximity_window = NULL,
@@ -376,44 +385,10 @@ detect_template.default <- function(x,
   detections
 }
 
-combine_lys_templates <- function(template_list, template_names) {
-  templates <- template_list[template_names]
-  missing <- template_names[!vapply(templates, function(x) inherits(x, "TemplateList"), logical(1))]
-  if (length(missing)) {
-    stop(
-      sprintf("Template object(s) not found: %s", paste(missing, collapse = ", ")),
-      call. = FALSE
-    )
-  }
 
-  if (length(templates) == 1L) {
-    return(templates[[1]])
-  }
-
-  do.call(monitoR::combineCorTemplates, templates)
-}
-
-set_template_thresholds <- function(template, thresholds) {
-  if (is.null(thresholds)) {
-    return(template)
-  }
-
-  current <- monitoR::templateCutoff(template)
-  if (length(thresholds) == 1L && is.null(names(thresholds))) {
-    thresholds <- stats::setNames(rep(thresholds, length(current)), names(current))
-  }
-
-  if (is.null(names(thresholds)) || any(!names(thresholds) %in% names(current))) {
-    stop("threshold must be a scalar or a named vector matching template names.", call. = FALSE)
-  }
-
-  current[names(thresholds)] <- thresholds
-  monitoR::templateCutoff(template) <- current
-  template
-}
-
+#' @rdname detect_template
 #' @export
-detect_template.lys <- function(x,
+detect_template.lys <- function(x,   # x is LYS object
                                 template_name = NULL,
                                 session = NULL,
                                 indices = NULL,
@@ -645,4 +620,199 @@ detect_template.lys <- function(x,
   }
 
   invisible(x)
+}
+
+
+#' Check template package dependencies
+#'
+#' @description
+#' Stops with an informative error if monitoR or tuneR are not installed.
+#'
+#' @return NULL (called for its side effect).
+#'
+#' @noRd
+#' @keywords internal
+check_template_dependencies <- function() {
+  missing <- c(
+    if (!requireNamespace("monitoR", quietly = TRUE)) "monitoR",
+    if (!requireNamespace("tuneR", quietly = TRUE)) "tuneR"
+  )
+
+  if (length(missing)) {
+    stop(
+      sprintf(
+        "Template detection requires these packages to be installed: %s",
+        paste(missing, collapse = ", ")
+      ),
+      call. = FALSE
+    )
+  }
+}
+
+
+#' Ensure required slots exist in the template registry
+#'
+#' @description
+#' Adds any missing list slots or columns to \code{lys$templates} so
+#' that downstream code does not encounter NULL errors.
+#'
+#' @param x A \code{lys} object
+#'
+#' @return The updated \code{lys} object.
+#'
+#' @noRd
+#' @keywords internal
+ensure_template_registry_slots <- function(x) {
+  if (is.null(x$templates$template_list)) {
+    x$templates$template_list <- list()
+  }
+  if (is.null(x$templates$template_matches)) {
+    x$templates$template_matches <- list()
+  }
+  if (is.null(x$templates$matches)) {
+    x$templates$matches <- x$templates$template_matches
+  }
+
+  required_cols <- data.frame(
+    template_name = character(),
+    template_type = character(),
+    wav_path = character(),
+    start_time = numeric(),
+    end_time = numeric(),
+    duration = numeric(),
+    freq_min = numeric(),
+    freq_max = numeric(),
+    detection_threshold = numeric(),
+    notes = character(),
+    created_at = as.POSIXct(character()),
+    stringsAsFactors = FALSE
+  )
+
+  missing_cols <- setdiff(names(required_cols), names(x$templates$template_info))
+  for (col in missing_cols) {
+    x$templates$template_info[[col]] <- rep(required_cols[[col]][NA_integer_], nrow(x$templates$template_info))
+  }
+  x$templates$template_info <- x$templates$template_info[, names(required_cols), drop = FALSE]
+
+  x
+}
+
+
+#' Filter template detection peaks by proximity
+#'
+#' @description
+#' Within each proximity window, retains only the highest-scoring detection
+#' per template, discarding lower-scoring duplicates.
+#'
+#' @param peaks A \code{detectionList} object from \code{monitoR::findPeaks()}
+#' @param proximity_window Numeric or NULL. Window width in seconds; NULL
+#'   disables filtering
+#'
+#' @return The filtered \code{detectionList} object.
+#'
+#' @noRd
+#' @keywords internal
+filter_template_peaks <- function(peaks, proximity_window = NULL) {
+  if (is.null(proximity_window)) {
+    return(peaks)
+  }
+
+  for (template_name in names(peaks@detections)) {
+    detections <- peaks@detections[[template_name]]
+    if (is.null(detections) || !nrow(detections)) {
+      next
+    }
+
+    detections <- detections[order(detections$time), , drop = FALSE]
+    group_ids <- integer(nrow(detections))
+    group_ids[1] <- 1L
+    anchor_time <- detections$time[1]
+    current_group <- 1L
+
+    if (nrow(detections) > 1L) {
+      for (i in 2:nrow(detections)) {
+        if (detections$time[i] - anchor_time > proximity_window) {
+          current_group <- current_group + 1L
+          anchor_time <- detections$time[i]
+        }
+        group_ids[i] <- current_group
+      }
+    }
+
+    keep <- unlist(
+      tapply(
+        seq_len(nrow(detections)),
+        group_ids,
+        function(idx) idx[which.max(detections$score[idx])]
+      ),
+      use.names = FALSE
+    )
+    peaks@detections[[template_name]] <- detections[sort(keep), , drop = FALSE]
+  }
+
+  peaks
+}
+
+
+#' Combine stored templates into a single TemplateList
+#'
+#' @description
+#' Selects the named templates from the registry list and combines them via
+#' \code{monitoR::combineCorTemplates()}.
+#'
+#' @param template_list Named list of \code{TemplateList} objects
+#' @param template_names Character vector of names to combine
+#'
+#' @return A single \code{TemplateList} object.
+#'
+#' @noRd
+#' @keywords internal
+combine_lys_templates <- function(template_list, template_names) {
+  templates <- template_list[template_names]
+  missing <- template_names[!vapply(templates, function(x) inherits(x, "TemplateList"), logical(1))]
+  if (length(missing)) {
+    stop(
+      sprintf("Template object(s) not found: %s", paste(missing, collapse = ", ")),
+      call. = FALSE
+    )
+  }
+
+  if (length(templates) == 1L) {
+    return(templates[[1]])
+  }
+
+  do.call(monitoR::combineCorTemplates, templates)
+}
+
+
+#' Override template score cutoffs
+#'
+#' @description
+#' Applies a scalar or named-vector threshold override to the stored cutoffs
+#' of a \code{TemplateList} object.
+#'
+#' @param template A \code{TemplateList} object
+#' @param thresholds NULL (no change), a scalar, or a named numeric vector
+#'
+#' @return The updated \code{TemplateList} object.
+#'
+#' @noRd
+#' @keywords internal
+set_template_thresholds <- function(template, thresholds) {
+  if (is.null(thresholds)) {
+    return(template)
+  }
+
+  current <- monitoR::templateCutoff(template)
+  if (length(thresholds) == 1L && is.null(names(thresholds))) {
+    thresholds <- stats::setNames(rep(thresholds, length(current)), names(current))
+  }
+
+  if (is.null(names(thresholds)) || any(!names(thresholds) %in% names(current))) {
+    stop("threshold must be a scalar or a named vector matching template names.", call. = FALSE)
+  }
+
+  current[names(thresholds)] <- thresholds
+  monitoR::templateCutoff(template) <- current
+  template
 }

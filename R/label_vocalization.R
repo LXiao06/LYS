@@ -1,26 +1,46 @@
+# Label Vocalization
+# Update date : Jun. 10, 2026
+
 #' Label detected vocalizations using template-match rules
-#' @param lys A \\code{lys} object with detected vocalizations and template
+#' @param lys A \code{lys} object with detected vocalizations and template
 #'   matches.
-#' @param rules Data frame with columns \\code{template_type}, \\code{label},
-#'   \\code{min_matches}, and \\code{priority}.
+#' @param rules Data frame with columns \code{template_type}, \code{label},
+#'   \code{min_matches}, and \code{priority}.
 #' @param default_label Character. Label assigned when no rule matches.
-#'   Default \\code{"TBD"}.
-#' @param multi_label Logical. When \\code{TRUE}, vocalizations that satisfy
-#'   multiple rules receive a compound label (e.g. \\code{"SongBout;BeggingCall"})
-#'   instead of only the highest-priority label. Default \\code{FALSE}.
-#' @param files Character vector of WAV filenames to relabel. \\code{NULL}
+#'   Default \code{"TBD"}.
+#' @param multi_label Logical. When \code{TRUE}, vocalizations that satisfy
+#'   multiple rules receive a compound label (e.g. \code{"SongBout;BeggingCall"})
+#'   instead of only the highest-priority label. Default \code{FALSE}.
+#' @param files Character vector of WAV filenames to relabel. \code{NULL}
 #'   relabels all vocalizations. Other rows keep their existing labels.
-#' @param cores Integer. Number of parallel workers. \\code{NULL} auto-detects.
+#' @param cores Integer. Number of parallel workers. \code{NULL} auto-detects.
 #' @param save_plot Logical. Save review spectrograms to disk. Default
-#'   \\code{TRUE}.
-#' @param plot_percent Numeric. Percentage of files to plot. Default \\code{100}.
-#' @param output_dir Character. Output directory; \\code{NULL} uses default.
-#' @param wl Integer. Spectrogram window length in samples. Default \\code{1024}.
-#' @param ovlp Numeric. Spectrogram overlap percentage. Default \\code{50}.
-#' @param freq_range Numeric vector \\code{c(min, max)} in kHz for RMS bandpass
-#'   filter. Default \\code{c(3, 5)}.
-#' @param verbose Logical. Print progress messages. Default \\code{TRUE}.
-#' @return The updated \\code{lys} object (invisibly).
+#'   \code{TRUE}.
+#' @param plot_percent Numeric. Percentage of files to plot. Default \code{100}.
+#' @param output_dir Character. Output directory; \code{NULL} uses default.
+#' @param wl Integer. Spectrogram window length in samples. Default \code{1024}.
+#' @param ovlp Numeric. Spectrogram overlap percentage. Default \code{50}.
+#' @param freq_range Numeric vector \code{c(min, max)} in kHz for RMS bandpass
+#'   filter. Default \code{c(3, 5)}.
+#' @param verbose Logical. Print progress messages. Default \code{TRUE}.
+#' @return The updated \code{lys} object (invisibly).
+#'
+#' @details
+#' Rules are evaluated per vocalization by counting template detections that
+#' fall within the vocalization's time window, then applying the first
+#' matching rule (lowest priority number). When \code{multi_label = TRUE},
+#' all matching labels are concatenated with \code{";"}.
+#'
+#' @examples
+#' \dontrun{
+#' rules <- data.frame(
+#'   template_type = c("song_bout", "innate_call"),
+#'   label         = c("SongBout", "BeggingCall"),
+#'   min_matches   = c(2L, 1L)
+#' )
+#' lys <- label_vocalization(lys, rules = rules)
+#' }
+#'
 #' @export
 label_vocalization <- function(lys,
                                rules,
@@ -97,15 +117,14 @@ label_vocalization <- function(lys,
     stop("Could not determine session_id and session_label for vocalizations.", call. = FALSE)
   }
 
-  # Attach a stable row ID (= original row position in lys$vocalizations) so we
-  # can patch results back when a `files` filter is active.
+  # Attach a stable row ID equal to the original row position in lys$vocalizations
+  # so we can patch results back when a files filter is active
   labeled$.tmp_row_id <- seq_len(nrow(labeled))
   labeled <- labeled[order(labeled$session_id, labeled$filename, labeled$start_time), , drop = FALSE]
 
-  # ---- files filter ---------------------------------------------------------
-  # When `files` is given, restrict the labeling loop to those files only and
-  # patch the results back into the full table at the end so that all other
-  # rows keep their existing labels.
+  # Files filter: restrict the labeling loop to the requested files only
+  # and patch results back into the full table at the end so all other
+  # rows keep their existing labels
   full_labeled <- NULL
   if (!is.null(files)) {
     files <- as.character(files)
@@ -129,7 +148,7 @@ label_vocalization <- function(lys,
       ))
     }
   }
-  # ---------------------------------------------------------------------------
+  # End of files filter
 
   session_ids <- unique(labeled$session_id)
 
@@ -234,14 +253,13 @@ label_vocalization <- function(lys,
   rownames(relabeled) <- NULL
 
   if (!is.null(full_labeled)) {
-    # Patch mode: start from the original lys$vocalizations so that rows
-    # outside the `files` filter keep their existing labels intact.
+    # Patch mode: restore rows outside the files filter with their original labels
     orig <- as.data.frame(lys$vocalizations, stringsAsFactors = FALSE)
-    # Add any new columns produced during this labeling run.
+    # Add any new columns produced during this labeling run
     for (col in setdiff(names(relabeled), names(orig))) {
       orig[[col]] <- NA
     }
-    # .tmp_row_id == the 1-based row index in the original lys$vocalizations.
+    # .tmp_row_id == the 1-based row index in the original lys$vocalizations
     patch_ids  <- relabeled$.tmp_row_id
     patch_cols <- setdiff(names(relabeled), ".tmp_row_id")
     orig[patch_ids, patch_cols] <- relabeled[, patch_cols, drop = FALSE]
@@ -255,8 +273,11 @@ label_vocalization <- function(lys,
   lys$misc$last_modified <- Sys.time()
 
   if (save_plot) {
-    # When a files filter was active, only re-plot the targeted files.
-    plot_labeled <- if (!is.null(full_labeled)) relabeled else labeled
+    if (!is.null(full_labeled)) {
+      plot_labeled <- relabeled  # Only re-plot the targeted files
+    } else {
+      plot_labeled <- labeled
+    }
     save_labeled_vocalization_plots(
       lys = lys,
       labeled = plot_labeled,
@@ -280,6 +301,24 @@ label_vocalization <- function(lys,
   invisible(lys)
 }
 
+#' Label a single vocalization row
+#'
+#' @description
+#' Counts template detections within the vocalization window and applies the
+#' first matching rule. Returns the updated row data frame.
+#'
+#' @param row Single-row data frame from lys$vocalizations
+#' @param rules Normalised rules data frame
+#' @param count_cols Character vector of per-type count column names
+#' @param match_key Character. Column name used to join against template matches
+#' @param matches_by_key Named list of template match data frames split by key
+#' @param default_label Character. Default label when no rule matches
+#' @param multi_label Logical. Assign compound labels when multiple rules match
+#'
+#' @return The updated single-row data frame.
+#'
+#' @noRd
+#' @keywords internal
 label_one_vocalization <- function(row,
                                    rules,
                                    count_cols,
@@ -326,9 +365,7 @@ label_one_vocalization <- function(row,
     matched_rules <- matched_rules[order(matched_rules$priority), , drop = FALSE]
     row$matched_template_types <- paste(matched_rules$template_type, collapse = ";")
     row$matched_rule_labels <- paste(matched_rules$label, collapse = ";")
-    # When multi_label is TRUE and more than one rule matched, assign all
-    # matched labels (sorted by priority) as a compound label. Otherwise
-    # use the single highest-priority winner.
+    # Assign compound label when multi_label is TRUE, otherwise top-priority winner
     if (multi_label && nrow(matched_rules) > 1L) {
       row$vocalization_label <- paste(matched_rules$label, collapse = ";")
     } else {
@@ -339,6 +376,19 @@ label_one_vocalization <- function(row,
   row
 }
 
+#' Normalise label rules into a canonical data frame
+#'
+#' @description
+#' Validates and coerces a rules list or data frame to the expected format,
+#' filling in optional columns with defaults.
+#'
+#' @param rules A data frame or list of rules
+#'
+#' @return A normalised data frame with columns template_type, label,
+#'   min_matches, and priority.
+#'
+#' @noRd
+#' @keywords internal
 normalize_label_rules <- function(rules) {
   if (is.list(rules) && !is.data.frame(rules)) {
     rules <- as.data.frame(rules, stringsAsFactors = FALSE)
@@ -383,6 +433,19 @@ normalize_label_rules <- function(rules) {
   rules
 }
 
+#' Collect all template matches from a LYS object
+#'
+#' @description
+#' Returns the combined template match data frame from
+#' \code{lys$templates$template_matches[["all"]]} or falls back to
+#' row-binding all per-template frames.
+#'
+#' @param lys A \code{lys} object
+#'
+#' @return A data frame of template matches, or an empty data frame.
+#'
+#' @noRd
+#' @keywords internal
 collect_template_matches <- function(lys) {
   matches <- lys$templates$template_matches
   if (is.null(matches) || !length(matches)) {
@@ -408,6 +471,18 @@ collect_template_matches <- function(lys) {
   as.data.frame(out, stringsAsFactors = FALSE)
 }
 
+#' Choose the column to use when joining vocalizations to template matches
+#'
+#' @description
+#' Prefers file_path for joining when it is available in both tables.
+#'
+#' @param vocalizations Data frame of labeled vocalizations
+#' @param template_matches Data frame of template match detections
+#'
+#' @return A single character column name.
+#'
+#' @noRd
+#' @keywords internal
 choose_match_key <- function(vocalizations, template_matches) {
   if (nrow(template_matches) &&
       "file_path" %in% names(vocalizations) &&
@@ -418,6 +493,26 @@ choose_match_key <- function(vocalizations, template_matches) {
   "filename"
 }
 
+#' Save labeled vocalization review plots
+#'
+#' @description
+#' Generates and saves a spectrogram-based review PNG for a sample of
+#' labeled WAV files, using the same two-panel layout as detection plots.
+#'
+#' @param lys A \code{lys} object
+#' @param labeled Data frame of labeled vocalizations
+#' @param output_dir Character or NULL. Output directory
+#' @param plot_percent Numeric. Percentage of files to plot
+#' @param wl Integer. Spectrogram window length
+#' @param ovlp Numeric. Overlap percentage
+#' @param freq_range Numeric vector \code{c(min, max)} in kHz
+#' @param cores Integer. Number of parallel workers
+#' @param verbose Logical. Print progress messages
+#'
+#' @return NULL (called for its side effect).
+#'
+#' @noRd
+#' @keywords internal
 save_labeled_vocalization_plots <- function(lys,
                                             labeled,
                                             output_dir,
@@ -601,6 +696,19 @@ save_labeled_vocalization_plots <- function(lys,
   invisible(NULL)
 }
 
+#' Count detections of a given template type
+#'
+#' @description
+#' Looks up a template_type in a table of counts and returns its count as an
+#' integer, or 0L when the type is not present.
+#'
+#' @param counts A named integer table from \code{table()}
+#' @param template_type Character. Template type name to look up
+#'
+#' @return An integer count.
+#'
+#' @noRd
+#' @keywords internal
 template_type_count <- function(counts, template_type) {
   if (template_type %in% names(counts)) {
     return(as.integer(counts[[template_type]]))

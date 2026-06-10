@@ -14,22 +14,30 @@ create_lys_object(
 )
 }
 \arguments{
-\item{base_path}{Character. Root directory containing WAV files.}
+\item{base_path}{Character. Root directory containing WAV files}
 
-\item{recursive}{Logical. Search subdirectories. Default \code{TRUE}.}
+\item{recursive}{Logical. Search subdirectories. Default \code{TRUE}}
 
-\item{exclude_dirs}{Character vector of subdirectory names to skip.}
+\item{exclude_dirs}{Character vector of subdirectory names to skip}
 
 \item{session_gap_hours}{Numeric. Gap in hours that defines a new session.
-Default \code{1}.}
+Default \code{1}}
 
-\item{template_types}{Character vector of allowed template type labels.}
+\item{template_types}{Character vector of allowed template type labels}
 
-\item{tz}{Character. Timezone string. Default \code{"UTC"}.}
+\item{tz}{Character. Timezone string. Default \code{"UTC"}}
 }
 \value{
 A \code{lys} object.
 }
 \description{
-Create a LYS object from a directory of WAV files
+Initializes a LYS object by scanning a directory for WAV files, parsing their
+metadata, grouping files into recording sessions, and setting up the
+template registry.
+}
+\examples{
+\dontrun{
+lys <- create_lys_object("path/to/wavs")
+}
+
 }

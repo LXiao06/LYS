@@ -1,3 +1,6 @@
+# LYS Package
+# Update date : Jun. 10, 2026
+
 "_PACKAGE"
 
 utils::globalVariables(c(

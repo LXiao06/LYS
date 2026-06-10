@@ -40,7 +40,7 @@ Invisibly, a list with two elements (\code{label1_to_label2} and
 \item{\code{rate_fg}}{Foreground rate (events / s).}
 \item{\code{rate_bg}}{Background rate (events / s).}
 \item{\code{rate_ratio}}{rate_fg / rate_bg.}
-\item{\code{ci_low,ci_high}}{95\\% CI on the rate ratio.}
+\item{\code{ci_low,ci_high}}{95\% CI on the rate ratio.}
 \item{\code{p_value}}{Two-sided p-value (exact Poisson test).}
 }
 }
@@ -50,7 +50,7 @@ to occur in a time window immediately following a \code{trigger_label} event
 (the \emph{foreground rate}) compared with the background rate of
 \code{response_label} outside those windows.  The ratio
 \eqn{\lambda_{fg} / \lambda_{bg}} > 1 indicates that the trigger elevates
-the response rate.  A 95\\% confidence interval is obtained via
+the response rate.  A 95\% confidence interval is obtained via
 Poisson rate-ratio approximation.  Both the forward
 (\code{trigger -> response}) and reverse (\code{response -> trigger})
 directions are computed so that directional asymmetry can be assessed.

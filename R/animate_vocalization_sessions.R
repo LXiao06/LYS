@@ -1,3 +1,6 @@
+# Animate Vocalization Sessions
+# Update date : Jun. 10, 2026
+
 #' Animate Vocalization Sessions with Sliding Window
 #'
 #' @description
@@ -128,7 +131,7 @@ animate_vocalization_sessions <- function(lys,
                                           show_progress = FALSE,
                                           verbose = TRUE) {
 
-  # --- Input validation ---
+  # Input validation
   if (!inherits(lys, "lys")) {
     stop("lys must be a LYS object.", call. = FALSE)
   }
@@ -155,7 +158,7 @@ animate_vocalization_sessions <- function(lys,
 
   ensure_pkgs("gifski")
 
-  # --- Resolve base labels ---
+  # Resolve base labels
   if (is.null(labels)) {
     labels <- sort(unique(mapped[[label_col]]))
     labels <- labels[!is.na(labels) & nzchar(labels)]
@@ -165,7 +168,7 @@ animate_vocalization_sessions <- function(lys,
     stop("No labels remain after dropping.", call. = FALSE)
   }
 
-  # --- Filter to requested labels ---
+  # Filter to requested labels
   keep <- mapped[[label_col]] %in% labels
   mapped <- mapped[keep, , drop = FALSE]
   if (!nrow(mapped)) {
@@ -173,26 +176,25 @@ animate_vocalization_sessions <- function(lys,
          call. = FALSE)
   }
 
-  # --- Validate sequence rules ---
+  # Validate sequence rules
   seq_rules <- validate_sequence_rules(sequence_rules)
 
-  # --- Session ordering ---
+  # Session ordering
   sessions <- unique(mapped$session_label[order(mapped$session_id)])
   n_sessions <- length(sessions)
 
-  # --- Detect reclassified events (precompute) ---
-  # seq_pairs: data frame of matched pairs + which following events are reclassified
+  # Precompute matched sequence pairs
   seq_pairs <- detect_sequence_pairs(
     mapped = mapped,
     label_col = label_col,
     seq_rules = seq_rules
   )
 
-  # Build full display label set (base labels + annotation labels from rules)
+  # Build full display label set
   annotation_labels <- unique(seq_rules$annotation)
   display_labels <- union(labels, annotation_labels)
 
-  # --- Color map covers both base and annotation labels ---
+  # Build color map for display labels
   color_map <- make_label_colors(display_labels, colors = colors)
 
   if (verbose && nrow(seq_pairs)) {
@@ -211,13 +213,13 @@ animate_vocalization_sessions <- function(lys,
     }
   }
 
-  # --- Compute per-session max time ---
+  # Compute per-session max time
   session_max <- tapply(mapped$session_relative_end, mapped$session_label, max)
   window_sec  <- window_duration_min * 60
 
-  # --- Apply session duration cap ---
-  # Default: shortest session so all sessions end at the same frame.
-  # User can override with an explicit number of seconds.
+  # Apply session duration cap
+  # Use shortest session by default so all sessions end at the same frame.
+  # Allow user override with explicit seconds.
   cap_sec <- if (is.null(max_session_sec)) {
     min(session_max, na.rm = TRUE)
   } else {
@@ -232,14 +234,14 @@ animate_vocalization_sessions <- function(lys,
     ))
   }
 
-  # Clip session_max so scrolling stops at the cap for every session
+  # Clip session max duration to cap
   session_max <- pmin(session_max, cap_sec)
 
-  # Drop events that start at or after the cap, clip those that overlap it
+  # Filter events starting after cap and clip overlapping ones
   mapped <- mapped[mapped$session_relative_start < cap_sec, , drop = FALSE]
   mapped$session_relative_end <- pmin(mapped$session_relative_end, cap_sec)
 
-  # Also clip seq_pairs (following events that start before the cap are kept)
+  # Clip sequence pairs relative to cap
   if (nrow(seq_pairs)) {
     seq_pairs <- seq_pairs[seq_pairs$following_start < cap_sec, , drop = FALSE]
     seq_pairs$following_end <- pmin(seq_pairs$following_end, cap_sec)
@@ -256,12 +258,12 @@ animate_vocalization_sessions <- function(lys,
     ))
   }
 
-  # --- Auto-height ---
+  # Set automatic plot height if null
   if (is.null(height)) {
     height <- max(700L, 180L + 120L * n_sessions)
   }
 
-  # --- Output directory ---
+  # Resolve output directory
   output_dir <- resolve_lys_output_dir(lys$base_path, output_dir = output_dir)
   anim_dir <- file.path(output_dir, "plots", "vocalization_session_animation")
   dir.create(anim_dir, recursive = TRUE, showWarnings = FALSE)
@@ -270,7 +272,7 @@ animate_vocalization_sessions <- function(lys,
   dir.create(frame_dir, recursive = TRUE, showWarnings = FALSE)
   on.exit(unlink(frame_dir, recursive = TRUE), add = TRUE)
 
-  # --- Generate frames ---
+  # Generate animation frames
   frame_paths <- character(n_frames)
   if (verbose) {
     pb <- utils::txtProgressBar(min = 0, max = n_frames, style = 3)
@@ -303,7 +305,7 @@ animate_vocalization_sessions <- function(lys,
 
   if (verbose) close(pb)
 
-  # --- Stitch into GIF ---
+  # Stitch frames into GIF
   gif_path <- file.path(anim_dir, output_file)
   gifski::gifski(
     png_files = frame_paths,
@@ -319,9 +321,20 @@ animate_vocalization_sessions <- function(lys,
 }
 
 
-# ---------------------------------------------------------------------------
-# Internal: validate and normalise sequence_rules
-# ---------------------------------------------------------------------------
+# Sequence Rules helpers ---------------------------------------------------
+
+#' Validate and normalise sequence rules
+#'
+#' @description
+#' Validates and coerces a rules list or data frame to the expected format,
+#' filling in optional columns with defaults.
+#'
+#' @param sequence_rules A data frame or list.
+#'
+#' @return A validated and normalised rules data frame.
+#'
+#' @noRd
+#' @keywords internal
 validate_sequence_rules <- function(sequence_rules) {
   empty <- data.frame(
     preceding_label = character(),
@@ -374,16 +387,19 @@ validate_sequence_rules <- function(sequence_rules) {
 }
 
 
-# ---------------------------------------------------------------------------
-# Internal: detect sequence pairs and mark following events for reclassification
-#
-# Returns a data frame with one row per matched pair:
-#   session_label, preceding_end, following_start, following_end,
-#   annotation, color, show_arrow
-#
-# The following event is uniquely identified by (session_label, following_start)
-# so the drawing code can look it up when rendering bars.
-# ---------------------------------------------------------------------------
+#' Detect sequence pairs and mark following events
+#'
+#' @description
+#' Scans mapped sessions for pairs of events that match the sequence rules.
+#'
+#' @param mapped A data frame of mapped vocalizations.
+#' @param label_col Column name holding the label.
+#' @param seq_rules Normalised sequence rules data frame.
+#'
+#' @return A data frame of matched pairs.
+#'
+#' @noRd
+#' @keywords internal
 detect_sequence_pairs <- function(mapped, label_col, seq_rules) {
 
   empty <- data.frame(
@@ -476,9 +492,29 @@ detect_sequence_pairs <- function(mapped, label_col, seq_rules) {
 }
 
 
-# ---------------------------------------------------------------------------
-# Internal: draw a single animation frame (sliding window)
-# ---------------------------------------------------------------------------
+# Rendering helpers --------------------------------------------------------
+
+#' Draw a single animation frame
+#'
+#' @description
+#' Renders a single frame of the sliding-window animation.
+#'
+#' @param mapped Mapped vocalizations.
+#' @param seq_pairs Matched sequence pairs.
+#' @param sessions Vector of session labels.
+#' @param session_max Named vector of session durations.
+#' @param color_map Named vector of colors.
+#' @param label_col Column name holding the label.
+#' @param frame_i Frame index.
+#' @param step_seconds Frame step in seconds.
+#' @param window_sec Window duration in seconds.
+#' @param window_duration_min Window duration in minutes.
+#' @param show_progress Logical indicating if progress should be shown.
+#'
+#' @return NULL (called for its plotting side effect).
+#'
+#' @noRd
+#' @keywords internal
 draw_animation_frame <- function(mapped,
                                  seq_pairs,
                                  sessions,
@@ -499,7 +535,7 @@ draw_animation_frame <- function(mapped,
   on.exit(graphics::par(old_par), add = TRUE)
   graphics::par(mar = c(4.5, 8, 3, 2), xaxs = "i", bg = "white")
 
-  # Per-session window boundaries (independent scrolling)
+  # Compute per-session window boundaries
   global_offset  <- (frame_i - 1L) * step_seconds
   session_xleft  <- numeric(n_sessions)
   session_xright <- numeric(n_sessions)
@@ -536,7 +572,7 @@ draw_animation_frame <- function(mapped,
   row_height    <- 0.34
   arrow_y_off   <- 0.48
 
-  # --- Per-session rendering ---
+  # Render each session
   for (si in seq_len(n_sessions)) {
     sess    <- sessions[si]
     y       <- session_y[[sess]]
@@ -544,7 +580,7 @@ draw_animation_frame <- function(mapped,
     w_right <- session_xright[si]
     s_max   <- session_max[[sess]]
 
-    # Progress label (optional)
+    # Render progress label if requested
     if (show_progress) {
       graphics::text(
         x = window_sec * 0.99,
@@ -556,7 +592,7 @@ draw_animation_frame <- function(mapped,
       )
     }
 
-    # Visible events in this session
+    # Find visible events in this session
     sess_rows <- mapped$session_label == sess &
       mapped$session_relative_end   >= w_left &
       mapped$session_relative_start <= w_right
@@ -565,7 +601,7 @@ draw_animation_frame <- function(mapped,
 
     sess_data <- mapped[sess_rows, , drop = FALSE]
 
-    # Reclassified events for this session (identified by following_start)
+    # Find reclassified events for this session
     sess_pairs <- if (nrow(seq_pairs)) {
       seq_pairs[seq_pairs$session_label == sess, , drop = FALSE]
     } else {
@@ -577,7 +613,7 @@ draw_animation_frame <- function(mapped,
       ev_end   <- sess_data$session_relative_end[ri]
       base_lbl <- as.character(sess_data[[label_col]][ri])
 
-      # Check if this event is a reclassified following event
+      # Check if event is a reclassified following event
       reclassify_idx <- if (nrow(sess_pairs)) {
         which(
           abs(sess_pairs$following_start - ev_start) < 1e-6 &
@@ -605,7 +641,7 @@ draw_animation_frame <- function(mapped,
       )
     }
 
-    # --- Arrows for pairs with show_arrow = TRUE ---
+    # Draw arrows for sequence pairs
     if (nrow(sess_pairs)) {
       arrow_pairs <- sess_pairs[sess_pairs$show_arrow, , drop = FALSE]
       for (fi in seq_len(nrow(arrow_pairs))) {
@@ -620,7 +656,7 @@ draw_animation_frame <- function(mapped,
         ax1 <- min(window_sec, fol_sta_local)
         if (ax1 - ax0 < 2) next
 
-        # Arrow is always black; no text label to avoid clashing with bar colors
+        # Draw connection arrow between events
         graphics::arrows(
           x0 = ax0, y0 = y + arrow_y_off,
           x1 = ax1, y1 = y + arrow_y_off,
@@ -631,9 +667,7 @@ draw_animation_frame <- function(mapped,
     }
   }
 
-  # --- Legend: horizontal row placed below the bottom session bar ---
-  # The ylim bottom is -0.2; the lowest session bar ends at y = 1 - row_height = 0.66.
-  # We use the empty space between them for the legend.
+  # Render legend below the bottom session bar
   graphics::legend(
     x      = xlim[1],
     y      = 0.45,

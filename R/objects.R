@@ -1,163 +1,28 @@
-collapse_unique <- function(x) {
-  x <- unique(x[!is.na(x) & nzchar(x)])
-  paste(x, collapse = ", ")
-}
-
-summarize_creation_items <- function(x, max_items = 8L) {
-  if (!length(x)) {
-    return("none")
-  }
-
-  x <- as.character(x)
-  if (length(x) <= max_items) {
-    return(paste(x, collapse = "; "))
-  }
-
-  shown <- paste(utils::head(x, max_items), collapse = "; ")
-  sprintf("%s; ... +%d more", shown, length(x) - max_items)
-}
-
-print_lys_creation_summary <- function(x) {
-  day_items <- sprintf(
-    "%s (%d files, %d sessions)",
-    x$day_summary$recording_date,
-    x$day_summary$n_files,
-    x$day_summary$n_sessions
-  )
-  session_items <- sprintf(
-    "%s [%d files]",
-    x$session_summary$session_label,
-    x$session_summary$n_files
-  )
-
-  message(
-    sprintf(
-      "Created LYS object: %d files across %d day(s) and %d session(s).",
-      nrow(x$metadata),
-      nrow(x$day_summary),
-      nrow(x$session_summary)
-    )
-  )
-  message("Days: ", summarize_creation_items(day_items))
-  message("Sessions: ", summarize_creation_items(session_items))
-}
-
-build_day_summary <- function(metadata) {
-  days <- unique(metadata$recording_day)
-
-  summary_rows <- lapply(days, function(day_value) {
-    idx <- metadata$recording_day == day_value
-    day_data <- metadata[idx, , drop = FALSE]
-
-    data.frame(
-      recording_day = as.Date(day_value),
-      recording_date = unique(day_data$recording_date)[1],
-      day_index = unique(day_data$day_index)[1],
-      n_files = nrow(day_data),
-      n_sessions = length(unique(day_data$session_id)),
-      first_recording = min(day_data$recording_start),
-      last_recording = max(day_data$recording_start),
-      bird_ids = collapse_unique(day_data$bird_id),
-      stringsAsFactors = FALSE
-    )
-  })
-
-  out <- do.call(rbind, summary_rows)
-  rownames(out) <- NULL
-  out
-}
-
-build_session_summary <- function(metadata) {
-  sessions <- unique(metadata$session_id)
-
-  summary_rows <- lapply(sessions, function(id) {
-    idx <- metadata$session_id == id
-    session_data <- metadata[idx, , drop = FALSE]
-    session_start <- min(session_data$recording_start)
-    last_recording_start <- max(session_data$recording_start)
-
-    data.frame(
-      session_id = id,
-      recording_day = unique(session_data$recording_day)[1],
-      recording_date = unique(session_data$recording_date)[1],
-      day_index = unique(session_data$day_index)[1],
-      session_number = unique(session_data$session_number)[1],
-      session_label = unique(session_data$session_label)[1],
-      n_files = nrow(session_data),
-      session_start = session_start,
-      last_recording_start = last_recording_start,
-      session_span_minutes = as.numeric(
-        difftime(last_recording_start, session_start, units = "mins")
-      ),
-      bird_ids = collapse_unique(session_data$bird_id),
-      relative_dirs = collapse_unique(session_data$relative_dir),
-      stringsAsFactors = FALSE
-    )
-  })
-
-  out <- do.call(rbind, summary_rows)
-  rownames(out) <- NULL
-  out
-}
-
-new_template_registry <- function(template_types = c("song_bout", "innate_call", "pupil_beg_call")) {
-  structure(
-    list(
-      allowed_types = template_types,
-      template_info = data.frame(
-        template_name = character(),
-        template_type = character(),
-        wav_path = character(),
-        start_time = numeric(),
-        end_time = numeric(),
-        duration = numeric(),
-        freq_min = numeric(),
-        freq_max = numeric(),
-        detection_threshold = numeric(),
-        notes = character(),
-        created_at = as.POSIXct(character()),
-        stringsAsFactors = FALSE
-      ),
-      template_list = list(),
-      template_matches = list(),
-      matches = list()
-    ),
-    class = "lys_template_registry"
-  )
-}
-
-new_lys <- function(metadata,
-                    base_path,
-                    session_gap_hours,
-                    templates = new_template_registry(),
-                    vocalizations = data.frame(),
-                    misc = list(),
-                    version = "0.0.0.9000") {
-  structure(
-    list(
-      metadata = metadata,
-      day_summary = build_day_summary(metadata),
-      session_summary = build_session_summary(metadata),
-      base_path = base_path,
-      templates = templates,
-      vocalizations = vocalizations,
-      misc = misc,
-      version = version,
-      settings = list(session_gap_hours = session_gap_hours)
-    ),
-    class = "lys"
-  )
-}
+# LYS Objects
+# Update date : Jun. 05, 2026
 
 #' Create a LYS object from a directory of WAV files
-#' @param base_path Character. Root directory containing WAV files.
-#' @param recursive Logical. Search subdirectories. Default \code{TRUE}.
-#' @param exclude_dirs Character vector of subdirectory names to skip.
+#'
+#' @description
+#' Initializes a LYS object by scanning a directory for WAV files, parsing their
+#' metadata, grouping files into recording sessions, and setting up the
+#' template registry.
+#'
+#' @param base_path Character. Root directory containing WAV files
+#' @param recursive Logical. Search subdirectories. Default \code{TRUE}
+#' @param exclude_dirs Character vector of subdirectory names to skip
 #' @param session_gap_hours Numeric. Gap in hours that defines a new session.
-#'   Default \code{1}.
-#' @param template_types Character vector of allowed template type labels.
-#' @param tz Character. Timezone string. Default \code{"UTC"}.
+#'   Default \code{1}
+#' @param template_types Character vector of allowed template type labels
+#' @param tz Character. Timezone string. Default \code{"UTC"}
+#'
 #' @return A \code{lys} object.
+#'
+#' @examples
+#' \dontrun{
+#' lys <- create_lys_object("path/to/wavs")
+#' }
+#'
 #' @export
 create_lys_object <- function(base_path,
                               recursive = TRUE,
@@ -200,6 +65,16 @@ create_lys_object <- function(base_path,
 }
 
 
+#' Print method for LYS object
+#'
+#' @description
+#' Display a concise overview of a \code{lys} object.
+#'
+#' @param x A \code{lys} object
+#' @param ... Unused
+#'
+#' @return The \code{lys} object, invisibly.
+#'
 #' @export
 print.lys <- function(x, ...) {
   cat("LYS Object\n")
@@ -217,6 +92,17 @@ print.lys <- function(x, ...) {
   invisible(x)
 }
 
+
+#' Summary method for LYS object
+#'
+#' @description
+#' Summarize the contents, session structure, and detections in a \code{lys} object.
+#'
+#' @param object A \code{lys} object
+#' @param ... Unused
+#'
+#' @return The \code{lys} object, invisibly.
+#'
 #' @export
 summary.lys <- function(object, ...) {
   print(object)
@@ -235,4 +121,225 @@ summary.lys <- function(object, ...) {
     print(vocal_summary, row.names = FALSE)
   }
   invisible(object)
+}
+
+
+#' Collapse non-empty unique values
+#'
+#' @param x Character vector
+#'
+#' @return A single collapsed character string.
+#'
+#' @noRd
+#' @keywords internal
+collapse_unique <- function(x) {
+  x <- unique(x[!is.na(x) & nzchar(x)])
+  paste(x, collapse = ", ")
+}
+
+
+#' Summarize items during creation
+#'
+#' @param x Character vector of items
+#' @param max_items Integer. Maximum number of items to show
+#'
+#' @return A character string summary of items.
+#'
+#' @noRd
+#' @keywords internal
+summarize_creation_items <- function(x, max_items = 8L) {
+  if (!length(x)) {
+    return("none")
+  }
+
+  x <- as.character(x)
+  if (length(x) <= max_items) {
+    return(paste(x, collapse = "; "))
+  }
+
+  shown <- paste(utils::head(x, max_items), collapse = "; ")
+  sprintf("%s; ... +%d more", shown, length(x) - max_items)
+}
+
+
+#' Print creation summary
+#'
+#' @param x A \code{lys} object
+#'
+#' @return NULL (called for side effects).
+#'
+#' @noRd
+#' @keywords internal
+print_lys_creation_summary <- function(x) {
+  day_items <- sprintf(
+    "%s (%d files, %d sessions)",
+    x$day_summary$recording_date,
+    x$day_summary$n_files,
+    x$day_summary$n_sessions
+  )
+  session_items <- sprintf(
+    "%s [%d files]",
+    x$session_summary$session_label,
+    x$session_summary$n_files
+  )
+
+  message(
+    sprintf(
+      "Created LYS object: %d files across %d day(s) and %d session(s).",
+      nrow(x$metadata),
+      nrow(x$day_summary),
+      nrow(x$session_summary)
+    )
+  )
+  message("Days: ", summarize_creation_items(day_items))
+  message("Sessions: ", summarize_creation_items(session_items))
+}
+
+
+#' Build day summary data frame
+#'
+#' @param metadata A LYS metadata data frame
+#'
+#' @return A data frame summarizing recording days.
+#'
+#' @noRd
+#' @keywords internal
+build_day_summary <- function(metadata) {
+  days <- unique(metadata$recording_day)
+
+  summary_rows <- lapply(days, function(day_value) {
+    idx <- metadata$recording_day == day_value
+    day_data <- metadata[idx, , drop = FALSE]
+
+    data.frame(
+      recording_day = as.Date(day_value),
+      recording_date = unique(day_data$recording_date)[1],
+      day_index = unique(day_data$day_index)[1],
+      n_files = nrow(day_data),
+      n_sessions = length(unique(day_data$session_id)),
+      first_recording = min(day_data$recording_start),
+      last_recording = max(day_data$recording_start),
+      bird_ids = collapse_unique(day_data$bird_id),
+      stringsAsFactors = FALSE
+    )
+  })
+
+  out <- do.call(rbind, summary_rows)
+  rownames(out) <- NULL
+  out
+}
+
+
+#' Build session summary data frame
+#'
+#' @param metadata A LYS metadata data frame
+#'
+#' @return A data frame summarizing recording sessions.
+#'
+#' @noRd
+#' @keywords internal
+build_session_summary <- function(metadata) {
+  sessions <- unique(metadata$session_id)
+
+  summary_rows <- lapply(sessions, function(id) {
+    idx <- metadata$session_id == id
+    session_data <- metadata[idx, , drop = FALSE]
+    session_start <- min(session_data$recording_start)
+    last_recording_start <- max(session_data$recording_start)
+
+    data.frame(
+      session_id = id,
+      recording_day = unique(session_data$recording_day)[1],
+      recording_date = unique(session_data$recording_date)[1],
+      day_index = unique(session_data$day_index)[1],
+      session_number = unique(session_data$session_number)[1],
+      session_label = unique(session_data$session_label)[1],
+      n_files = nrow(session_data),
+      session_start = session_start,
+      last_recording_start = last_recording_start,
+      session_span_minutes = as.numeric(
+        difftime(last_recording_start, session_start, units = "mins")
+      ),
+      bird_ids = collapse_unique(session_data$bird_id),
+      relative_dirs = collapse_unique(session_data$relative_dir),
+      stringsAsFactors = FALSE
+    )
+  })
+
+  out <- do.call(rbind, summary_rows)
+  rownames(out) <- NULL
+  out
+}
+
+
+#' Create a new template registry
+#'
+#' @param template_types Character vector of allowed template types
+#'
+#' @return A \code{lys_template_registry} object.
+#'
+#' @noRd
+#' @keywords internal
+new_template_registry <- function(template_types = c("song_bout", "innate_call", "pupil_beg_call")) {
+  structure(
+    list(
+      allowed_types = template_types,
+      template_info = data.frame(
+        template_name = character(),
+        template_type = character(),
+        wav_path = character(),
+        start_time = numeric(),
+        end_time = numeric(),
+        duration = numeric(),
+        freq_min = numeric(),
+        freq_max = numeric(),
+        detection_threshold = numeric(),
+        notes = character(),
+        created_at = as.POSIXct(character()),
+        stringsAsFactors = FALSE
+      ),
+      template_list = list(),
+      template_matches = list(),
+      matches = list()
+    ),
+    class = "lys_template_registry"
+  )
+}
+
+
+#' LYS object constructor
+#'
+#' @param metadata Data frame of metadata
+#' @param base_path Character. Base path to recordings
+#' @param session_gap_hours Numeric. Gap in hours
+#' @param templates A \code{lys_template_registry} object
+#' @param vocalizations Data frame of vocalization detections
+#' @param misc List of miscellaneous data
+#' @param version Character. Package version
+#'
+#' @return A \code{lys} object.
+#'
+#' @noRd
+#' @keywords internal
+new_lys <- function(metadata,
+                    base_path,
+                    session_gap_hours,
+                    templates = new_template_registry(),
+                    vocalizations = data.frame(),
+                    misc = list(),
+                    version = "0.0.0.9000") {
+  structure(
+    list(
+      metadata = metadata,
+      day_summary = build_day_summary(metadata),
+      session_summary = build_session_summary(metadata),
+      base_path = base_path,
+      templates = templates,
+      vocalizations = vocalizations,
+      misc = misc,
+      version = version,
+      settings = list(session_gap_hours = session_gap_hours)
+    ),
+    class = "lys"
+  )
 }

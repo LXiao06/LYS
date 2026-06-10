@@ -1,3 +1,6 @@
+# Annotate Vocalizations
+# Update date : Jun. 10, 2026
+
 #' Apply Sequence Rules to Annotate Vocalizations
 #'
 #' @description
@@ -53,7 +56,7 @@
 #' @export
 annotate_vocalizations <- function(lys, sequence_rules, label_col = "vocalization_label") {
 
-  # --- Input validation ---
+  # Input validation
   if (!inherits(lys, "lys")) {
     stop("lys must be a LYS object.", call. = FALSE)
   }
@@ -77,7 +80,7 @@ annotate_vocalizations <- function(lys, sequence_rules, label_col = "vocalizatio
     )
   }
 
-  # --- Validate Sequence Rules ---
+  # Validate sequence rules
   if (!is.data.frame(sequence_rules) || nrow(sequence_rules) == 0) {
     stop("sequence_rules must be a non-empty data frame.", call. = FALSE)
   }
@@ -92,7 +95,7 @@ annotate_vocalizations <- function(lys, sequence_rules, label_col = "vocalizatio
     )
   }
 
-  # Normalize rule columns
+  # Normalise rule columns
   rules <- sequence_rules
   rules$preceding_label <- as.character(rules$preceding_label)
   rules$following_label <- as.character(rules$following_label)
@@ -104,7 +107,7 @@ annotate_vocalizations <- function(lys, sequence_rules, label_col = "vocalizatio
   }
   rules$min_gap_sec <- as.numeric(rules$min_gap_sec)
 
-  # Prepare annotated output
+  # Prepare annotated output column
   events$annotated_label <- as.character(events[[label_col]])
   
   sessions <- unique(events$session_label)
@@ -117,21 +120,21 @@ annotate_vocalizations <- function(lys, sequence_rules, label_col = "vocalizatio
     for (i in seq_along(idx)) {
       curr_idx <- idx[i]
       curr_label <- events$annotated_label[curr_idx]
-      
-      # Filter rules applicable to the current event's label
+
+      # Filter rules applicable to the current event label
       app_rules <- rules[rules$following_label == curr_label, , drop = FALSE]
       if (nrow(app_rules) == 0) next
       
       for (r in seq_len(nrow(app_rules))) {
         rule <- app_rules[r, ]
         
-        # Unconditional match
+        # Unconditional rule: no preceding event required
         if (is.na(rule$preceding_label)) {
           events$annotated_label[curr_idx] <- rule$annotation
-          break # Matched, move to next event
+          break # Matched; move to next event
         }
-        
-        # Look back for most recent preceding event
+
+        # Look back for the most recent matching preceding event
         prev_indices <- idx[seq_len(i - 1)]
         prec_match_positions <- which(events$annotated_label[prev_indices] == rule$preceding_label)
         
@@ -148,7 +151,7 @@ annotate_vocalizations <- function(lys, sequence_rules, label_col = "vocalizatio
         
         if (gap >= min_g && gap <= max_g) {
           events$annotated_label[curr_idx] <- rule$annotation
-          break # Matched, move to next event
+          break # Matched; move to next event
         }
       }
     }

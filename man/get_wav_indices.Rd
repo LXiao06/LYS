@@ -7,14 +7,20 @@
 get_wav_indices(lys, wav_files)
 }
 \arguments{
-\item{lys}{A \\code{lys} object.}
+\item{lys}{A \code{lys} object}
 
 \item{wav_files}{Character vector of filenames, relative paths, or full
-paths to match against \\code{lys$metadata}.}
+paths to match against \code{lys$metadata}}
 }
 \value{
 An integer vector of matching row indices.
 }
 \description{
-Look up metadata row indices for WAV files in a LYS object
+Find indices in the LYS metadata table matching specified WAV files.
+}
+\examples{
+\dontrun{
+indices <- get_wav_indices(lys, "song.wav")
+}
+
 }

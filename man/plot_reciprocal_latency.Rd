@@ -54,7 +54,7 @@ Invisibly, a list with:
 \item{\code{latencies_2_to_1}}{Matched-pair data frame for
 \code{label2} -> \code{label1}.}
 \item{\code{binom_test}}{Result of \code{binom.test()} testing whether
-\code{label1->label2} accounts for more than 50\\% of all matched pairs
+\code{label1->label2} accounts for more than 50\% of all matched pairs
 (one-sided, H1: p > 0.5).}
 \item{\code{ks_test}}{Result of \code{ks.test()} comparing the two
 distributions.}

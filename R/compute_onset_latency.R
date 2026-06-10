@@ -1,3 +1,6 @@
+# Compute Onset Latency
+# Update date : Jun. 10, 2026
+
 #' Compute Onset Latency Distribution Between Vocalization Pairs
 #'
 #' @description
@@ -81,7 +84,7 @@ compute_onset_latency <- function(data,
                                   window_sec       = 60,
                                   require_adjacent = TRUE) {
 
-  # --- Validation ---
+  # Validation
   if (!is.data.frame(data) || !nrow(data)) {
     stop("'data' must be a non-empty data frame.", call. = FALSE)
   }
@@ -104,7 +107,7 @@ compute_onset_latency <- function(data,
     stop("'window_sec' must be a single positive number.", call. = FALSE)
   }
 
-  # --- Empty result template ---
+  # Empty result template
   empty_result <- data.frame(
     session        = character(),
     preceding_start = numeric(),
@@ -139,7 +142,7 @@ compute_onset_latency <- function(data,
 
       if (!length(candidates)) next
 
-      # Optionally require adjacency: no intervening preceding_label event
+      # Optionally require adjacency: reject if an intervening preceding event exists
       if (require_adjacent) {
         first_fol_start <- sess_data[[start_col]][candidates[1]]
         intervening <- pre_rows[
@@ -149,7 +152,7 @@ compute_onset_latency <- function(data,
         if (length(intervening)) next
       }
 
-      fi          <- candidates[1]  # nearest qualifying following event
+      fi          <- candidates[1]  # Nearest qualifying following event
       fol_start   <- sess_data[[start_col]][fi]
       fol_end     <- sess_data[[end_col]][fi]
 

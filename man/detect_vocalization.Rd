@@ -2,19 +2,125 @@
 % Please edit documentation in R/detect_vocalization.R
 \name{detect_vocalization}
 \alias{detect_vocalization}
+\alias{detect_vocalization.default}
+\alias{detect_vocalization.lys}
 \title{Detect vocalizations in audio}
 \usage{
 detect_vocalization(x, ...)
+
+\method{detect_vocalization}{default}(
+  x,
+  wl = 1024,
+  ovlp = 50,
+  norm_method = c("quantile", "max"),
+  rms_threshold = 0.1,
+  min_duration = 0.5,
+  gap_duration = 0.3,
+  edge_window = 0.05,
+  freq_range = c(3, 5),
+  plot = TRUE,
+  save_plot = FALSE,
+  plot_dir = NULL,
+  ...
+)
+
+\method{detect_vocalization}{lys}(
+  x,
+  session = NULL,
+  indices = NULL,
+  cores = NULL,
+  save_plot = TRUE,
+  save_csv = FALSE,
+  plot_percent = 100,
+  output_dir = NULL,
+  wl = 1024,
+  ovlp = 50,
+  norm_method = c("quantile", "max"),
+  rms_threshold = 0.2,
+  min_duration = 1,
+  gap_duration = 0.5,
+  edge_window = 0.05,
+  freq_range = c(3, 5),
+  verbose = TRUE,
+  ...
+)
 }
 \arguments{
-\item{x}{A \\code{lys} object or a path to a WAV file.}
+\item{x}{A \code{lys} object or a path to a WAV file}
 
-\item{...}{Additional arguments passed to the method.}
+\item{...}{Additional arguments (currently unused)}
+
+\item{wl}{Integer. Window length in samples for the RMS envelope. Default
+\code{1024}}
+
+\item{ovlp}{Numeric. Overlap percentage between consecutive windows. Default
+\code{50}}
+
+\item{norm_method}{Character. Normalisation method: \code{"quantile"}
+(default) or \code{"max"}}
+
+\item{rms_threshold}{Numeric. RMS threshold after normalisation. Default
+\code{0.1} for WAV files, \code{0.2} for LYS objects}
+
+\item{min_duration}{Numeric. Minimum bout duration in seconds. Default
+\code{0.5} for WAV files, \code{1} for LYS objects}
+
+\item{gap_duration}{Numeric. Gap shorter than this (seconds) merges adjacent
+bouts. Default \code{0.3} for WAV files, \code{0.5} for LYS objects}
+
+\item{edge_window}{Numeric. Duration (seconds) at the start of the file
+suppressed to avoid edge artefacts. Default \code{0.05}}
+
+\item{freq_range}{Numeric vector \code{c(min, max)} in kHz for bandpass
+filter. Default \code{c(3, 5)}}
+
+\item{plot}{Logical. Draw detection plots interactively. Default \code{TRUE}}
+
+\item{save_plot}{Logical. Save detection plots to disk. Default \code{FALSE}
+for WAV files, \code{TRUE} for LYS objects}
+
+\item{plot_dir}{Character. Directory for saved plots; \code{NULL} uses a
+default location relative to the input file}
+
+\item{session}{Character or integer vector. Session IDs or labels to process.
+\code{NULL} processes all sessions (LYS method only)}
+
+\item{indices}{Integer vector. Row indices within a session to process.
+\code{NULL} processes all files (LYS method only)}
+
+\item{cores}{Integer. Number of parallel workers. \code{NULL} auto-detects
+(LYS method only)}
+
+\item{save_csv}{Logical. Write per-session CSV result files. Default
+\code{FALSE} (LYS method only)}
+
+\item{plot_percent}{Numeric. Percentage of files to plot when running on a
+LYS object. Default \code{100} (LYS method only)}
+
+\item{output_dir}{Character. Root output directory; \code{NULL} uses a
+default location (LYS method only)}
+
+\item{verbose}{Logical. Print progress messages. Default \code{TRUE} (LYS
+method only)}
 }
 \value{
-For \\code{lys} input, the updated object; for a WAV path, a
-data frame of detected vocalization bouts.
+For \code{lys} input, the updated object with detections stored in
+\code{lys$vocalizations} (invisibly). For a WAV path, a data frame of
+detected vocalization bouts.
 }
 \description{
-Detect vocalizations in audio
+Detects vocalization bouts in a WAV file or across all files in a LYS
+object using an RMS envelope threshold algorithm. A bandpass filter is
+applied before detection; overlapping bouts within \code{gap_duration} are
+merged; bouts shorter than \code{min_duration} are discarded.
+}
+\examples{
+\dontrun{
+# Single WAV file
+bouts <- detect_vocalization("song.wav", rms_threshold = 0.15)
+
+# LYS object
+lys <- detect_vocalization(lys, rms_threshold = 0.2, cores = 4)
+}
+
 }

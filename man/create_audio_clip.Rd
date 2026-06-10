@@ -7,13 +7,14 @@
 create_audio_clip(x, ...)
 }
 \arguments{
-\item{x}{Input passed to \code{ASAP::create_audio_clip()}.}
+\item{x}{Input passed to \code{ASAP::create_audio_clip()}}
 
-\item{...}{Additional arguments forwarded to \code{ASAP::create_audio_clip()}.}
+\item{...}{Additional arguments forwarded to \code{ASAP::create_audio_clip()}}
 }
 \value{
 Whatever \code{ASAP::create_audio_clip()} returns.
 }
 \description{
-Create an audio clip via ASAP
+Thin wrapper around \code{ASAP::create_audio_clip()} that ensures the ASAP
+package is available before forwarding all arguments.
 }
