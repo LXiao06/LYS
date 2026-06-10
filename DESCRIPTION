@@ -1,7 +1,7 @@
 Package: LYS
 Type: Package
 Title: Label Your Song
-Version: 0.0.0.9000
+Version: 0.1.0
 Authors@R:
     person("Lei", "Xiao", email = "Leixiao2006@gmail.com", role = c("aut", "cre"))
 Description: Tools for recording management, session assignment, and tracking
