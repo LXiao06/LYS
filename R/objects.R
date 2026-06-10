@@ -75,6 +75,7 @@ create_lys_object <- function(base_path,
 #'
 #' @return The \code{lys} object, invisibly.
 #'
+#' @keywords internal
 #' @export
 print.lys <- function(x, ...) {
   cat("LYS Object\n")
@@ -103,6 +104,7 @@ print.lys <- function(x, ...) {
 #'
 #' @return The \code{lys} object, invisibly.
 #'
+#' @keywords internal
 #' @export
 summary.lys <- function(object, ...) {
   print(object)

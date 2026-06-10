@@ -17,3 +17,4 @@ The \code{lys} object, invisibly.
 \description{
 Display a concise overview of a \code{lys} object.
 }
+\keyword{internal}

@@ -17,3 +17,4 @@ The \code{lys} object, invisibly.
 \description{
 Summarize the contents, session structure, and detections in a \code{lys} object.
 }
+\keyword{internal}
