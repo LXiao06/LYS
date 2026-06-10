@@ -1,0 +1,70 @@
+url: https://lxiao06.github.io/LYS/
+development:
+  mode: auto
+template:
+  bootstrap: 5
+  bslib:
+    primary: "#1e88e5"
+    link-color: "#1e88e5"
+
+repo:
+  url:
+    home: https://github.com/LXiao06/LYS
+    source: https://github.com/LXiao06/LYS/blob/HEAD/
+    issue: https://github.com/LXiao06/LYS/issues/
+    user: https://github.com/LXiao06/
+
+navbar:
+  structure:
+    left:  [intro, reference, articles, news]
+    right: [search, github]
+
+articles:
+  - title: ~
+    contents:
+      - lys_tutorial
+
+reference:
+  - title: "Object Creation & Management"
+    desc: "Functions for creating and managing core LYS objects"
+    contents:
+      - create_lys_object
+      - get_wav_indices
+
+  - title: "Audio Visualization & Snippet Export"
+    desc: "Functions for visualising audio spectrograms and exporting audio clips"
+    contents:
+      - visualize_song
+      - create_audio_clip
+
+  - title: "Vocalization Detection"
+    desc: "Functions for detecting vocalizations from WAV recordings"
+    contents:
+      - detect_vocalization
+
+  - title: "Template Match Classification"
+    desc: "Functions for registering templates and detecting matches"
+    contents:
+      - create_template
+      - detect_template
+
+  - title: "Labeling & Sequence Annotation"
+    desc: "Functions for assigning vocal labels and annotating sequences"
+    contents:
+      - label_vocalization
+      - annotate_vocalizations
+
+  - title: "Exporting & Mapping"
+    desc: "Functions for exporting clipped events and mapping session timelines"
+    contents:
+      - export_vocalizations
+      - map_vocalization_sessions
+      - animate_vocalization_sessions
+
+  - title: "Sequence Statistics & Reciprocal Analysis"
+    desc: "Statistical analysis of vocalization transitions and latencies"
+    contents:
+      - compute_onset_latency
+      - permutation_transition_test
+      - plot_reciprocal_latency
+      - conditional_rate_ratio
