@@ -16,3 +16,9 @@ utils::globalVariables(c(
   "selec",
   "start_time"
 ))
+
+
+.onAttach <- function(libname, pkgname) {
+  version <- utils::packageVersion("LYS")
+  packageStartupMessage(sprintf("Loaded LYS version %s", version))
+}
