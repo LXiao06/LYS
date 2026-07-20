@@ -90,6 +90,126 @@ list_wav_files <- function(base_path,
 }
 
 
+#' Pool and standardize SAP2011 WAV files
+#'
+#' @description
+#' Copies WAV files from a directory tree into one directory. Files already in
+#' the SAP output format are copied unchanged. SAP recorder temporary files
+#' named \code{Bird_Month_Day_Year_milliseconds_since_midnight.wav} are renamed
+#' to the SAP output format used by LYS.
+#'
+#' @param input_dir Character. Root directory containing WAV files.
+#' @param output_dir Character. Directory to receive the pooled WAV files.
+#' @param subdirs Optional character vector of paths, relative to
+#'   \code{input_dir}, to include. \code{NULL} includes all subdirectories.
+#' @param tz Character. Time zone used to construct timestamps. Default
+#'   \code{"UTC"}.
+#'
+#' @return A data frame mapping source files to their copied filenames.
+#'
+#' @examples
+#' \dontrun{
+#' preprocess_sap_wavs("raw_recordings", "pooled_wavs", subdirs = c("661", "662"))
+#' }
+#'
+#' @export
+preprocess_sap_wavs <- function(input_dir, output_dir, subdirs = NULL, tz = "UTC") {
+  input_dir <- validate_base_path(input_dir)
+  output_dir <- normalizePath(output_dir, winslash = "/", mustWork = FALSE)
+
+  if (!is.null(subdirs) && (!is.character(subdirs) || anyNA(subdirs) || any(!nzchar(subdirs)))) {
+    stop("subdirs must be NULL or a non-empty character vector.", call. = FALSE)
+  }
+
+  wav_files <- list_wav_files(input_dir)
+  wav_files <- normalizePath(wav_files, winslash = "/", mustWork = TRUE)
+  output_prefix <- paste0(output_dir, "/")
+  wav_files <- wav_files[!startsWith(wav_files, output_prefix)]
+
+  relative_paths <- substring(wav_files, nchar(input_dir) + 2L)
+  if (!is.null(subdirs)) {
+    subdirs <- sub("/$", "", gsub("\\\\", "/", subdirs))
+    keep <- vapply(relative_paths, function(path) {
+      any(vapply(subdirs, function(dir) path == dir || startsWith(path, paste0(dir, "/")), logical(1)))
+    }, logical(1))
+    wav_files <- wav_files[keep]
+  }
+
+  if (!length(wav_files)) {
+    stop("No WAV files found for the requested directories.", call. = FALSE)
+  }
+
+  output_names <- vapply(wav_files, standardize_sap_wav_name, character(1), tz = tz)
+  if (anyDuplicated(output_names)) {
+    stop("Multiple source files would produce the same output filename.", call. = FALSE)
+  }
+
+  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  destinations <- file.path(output_dir, output_names)
+  if (any(file.exists(destinations))) {
+    stop("Output directory already contains one or more target filenames.", call. = FALSE)
+  }
+
+  copied <- file.copy(wav_files, destinations, copy.date = TRUE)
+  if (!all(copied)) {
+    stop("Could not copy every WAV file; source files were left unchanged.", call. = FALSE)
+  }
+
+  data.frame(
+    source = wav_files,
+    destination = destinations,
+    filename = output_names,
+    converted = basename(wav_files) != output_names,
+    stringsAsFactors = FALSE
+  )
+}
+
+
+#' Standardize one SAP2011 WAV filename
+#'
+#' @param filename Character. A WAV filename or path.
+#' @param tz Character. Time zone used to construct timestamps.
+#'
+#' @return A SAP output-format filename.
+#'
+#' @noRd
+standardize_sap_wav_name <- function(filename, tz = "UTC") {
+  base <- basename(filename)
+  permanent <- "^.+?_\\d+(?:\\.\\d+)?_\\d{1,2}_\\d{1,2}_\\d{1,2}_\\d{1,2}_\\d{1,2}\\.[Ww][Aa][Vv]$"
+  if (grepl(permanent, base)) {
+    return(base)
+  }
+
+  temporary <- "^(.+?)_([A-Za-z]+)_(\\d{1,2})_(\\d{4})_(\\d+)\\.[Ww][Aa][Vv]$"
+  match <- regmatches(base, regexec(temporary, base))[[1]]
+  if (!length(match)) {
+    stop("Unsupported WAV filename: ", base, call. = FALSE)
+  }
+
+  month <- match(match[3], month.name)
+  if (is.na(month)) {
+    stop("Unsupported month in filename: ", base, call. = FALSE)
+  }
+
+  milliseconds <- as.numeric(match[6])
+  if (is.na(milliseconds) || milliseconds < 0 || milliseconds >= 86400000) {
+    stop("Invalid milliseconds-since-midnight value: ", base, call. = FALSE)
+  }
+
+  recording_start <- as.POSIXct(
+    sprintf("%s-%02d-%02d", match[5], month, as.integer(match[4])),
+    tz = tz
+  ) + milliseconds / 1000
+  serial <- (as.numeric(recording_start) - as.numeric(as.POSIXct("1899-12-30", tz = tz))) / 86400
+
+  sprintf(
+    "%s_%.8f_%d_%d_%s.wav",
+    match[2], serial, month, as.integer(match[4]),
+    format(recording_start, "%H_%M_%S", tz = tz)
+  )
+}
+
+
 #' Infer a bird ID from a filename
 #'
 #' @description

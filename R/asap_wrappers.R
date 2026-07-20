@@ -54,3 +54,45 @@ check_asap_dependency <- function() {
     )
   }
 }
+
+
+#' Convert a LYS object to an ASAP Sap object
+#'
+#' @description
+#' Adapts LYS recording metadata for ASAP functions. In particular, LYS
+#' relative directories become ASAP's \code{day_post_hatch} paths, allowing
+#' ASAP to find WAV files below the LYS base directory.
+#'
+#' @param x A \code{lys} object.
+#'
+#' @return An ASAP \code{Sap} object.
+#'
+#' @examples
+#' \dontrun{
+#' sap <- as_sap(lys)
+#' visualize_song(sap, n_samples = 4, random = TRUE)
+#' }
+#'
+#' @export
+as_sap <- function(x) {
+  check_asap_dependency()
+
+  if (!inherits(x, "lys")) {
+    stop("x must be a LYS object.", call. = FALSE)
+  }
+  if (!is.data.frame(x$metadata) || !all(c("filename", "relative_dir") %in% names(x$metadata))) {
+    stop("LYS metadata must contain filename and relative_dir columns.", call. = FALSE)
+  }
+
+  metadata <- x$metadata
+  metadata$day_post_hatch <- metadata$relative_dir
+  metadata$day_post_hatch[is.na(metadata$day_post_hatch) | metadata$day_post_hatch == "."] <- ""
+
+  # ASAP has no exported low-level constructor; use its constructor so all
+  # default template and segment fields are compatible with ASAP methods.
+  utils::getFromNamespace("new_sap", "ASAP")(
+    metadata = metadata,
+    base_path = x$base_path,
+    misc = list(lys_version = x$version)
+  )
+}
