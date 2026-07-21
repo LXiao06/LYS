@@ -1,5 +1,14 @@
 # Package index
 
+## Preprocessing
+
+Pool and standardize SAP2011 WAV recordings before analysis
+
+- [`preprocess_sap_wavs()`](https://lxiao06.github.io/LYS/reference/preprocess_sap_wavs.md)
+  : Pool and standardize SAP2011 WAV files
+- [`as_sap()`](https://lxiao06.github.io/LYS/reference/as_sap.md) :
+  Convert a LYS object to an ASAP Sap object
+
 ## Object Creation & Management
 
 Functions for creating and managing core LYS objects
