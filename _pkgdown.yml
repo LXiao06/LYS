@@ -31,6 +31,11 @@ articles:
       - lys_tutorial
 
 reference:
+  - title: "Preprocessing"
+    desc: "Pool and standardize SAP2011 WAV recordings before analysis"
+    contents:
+      - preprocess_sap_wavs
+
   - title: "Object Creation & Management"
     desc: "Functions for creating and managing core LYS objects"
     contents:
