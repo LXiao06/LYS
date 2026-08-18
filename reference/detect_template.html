@@ -56,6 +56,7 @@ in <code>lys$templates$template_matches</code> (LYS method).</p>
 <span>  <span class="va">template</span>,</span>
 <span>  cor.method <span class="op">=</span> <span class="st">"pearson"</span>,</span>
 <span>  proximity_window <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  threshold <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  plot <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  save_plot <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  plot_dir <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -93,8 +94,7 @@ in <code>lys$templates$template_matches</code> (LYS method).</p>
 
 
 <dt id="arg-template">template<a class="anchor" aria-label="anchor" href="#arg-template"></a></dt>
-<dd><p>A <code>TemplateList</code> object or a list of them (default
-method), or <code>NULL</code> to use all stored templates (LYS method)</p></dd>
+<dd><p>A <code>TemplateList</code> object or a list of them (default</p></dd>
 
 
 <dt id="arg-cor-method">cor.method<a class="anchor" aria-label="anchor" href="#arg-cor-method"></a></dt>
@@ -103,9 +103,18 @@ method), or <code>NULL</code> to use all stored templates (LYS method)</p></dd>
 
 
 <dt id="arg-proximity-window">proximity_window<a class="anchor" aria-label="anchor" href="#arg-proximity-window"></a></dt>
-<dd><p>Numeric or NULL. Within this window (seconds),
-only the highest-scoring detection is kept per template. <code>NULL</code>
-disables filtering</p></dd>
+<dd><p>Numeric scalar, numeric vector, named numeric vector,
+or NULL. Within this window (seconds), only the highest-scoring detection
+is kept per template. When multiple templates are used, pass a single scalar
+for a shared window, an unnamed vector for 1-to-1 positional mapping, or a
+named vector mapping template names to windows. <code>NULL</code> disables filtering</p></dd>
+
+
+<dt id="arg-threshold">threshold<a class="anchor" aria-label="anchor" href="#arg-threshold"></a></dt>
+<dd><p>Numeric scalar, numeric vector, named numeric vector, or NULL
+to override template cutoffs. When multiple templates are used, pass a single scalar
+for a shared threshold, an unnamed vector for 1-to-1 positional mapping, or a
+named vector mapping template names to thresholds.</p></dd>
 
 
 <dt id="arg-plot">plot<a class="anchor" aria-label="anchor" href="#arg-plot"></a></dt>
@@ -134,11 +143,6 @@ to (LYS method only)</p></dd>
 <dt id="arg-indices">indices<a class="anchor" aria-label="anchor" href="#arg-indices"></a></dt>
 <dd><p>Integer vector. File indices within a session to process
 (LYS method only)</p></dd>
-
-
-<dt id="arg-threshold">threshold<a class="anchor" aria-label="anchor" href="#arg-threshold"></a></dt>
-<dd><p>Named numeric vector or scalar to override stored template
-cutoffs (LYS method only)</p></dd>
 
 
 <dt id="arg-cores">cores<a class="anchor" aria-label="anchor" href="#arg-cores"></a></dt>

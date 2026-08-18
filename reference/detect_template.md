@@ -15,6 +15,7 @@ detect_template(
   template,
   cor.method = "pearson",
   proximity_window = NULL,
+  threshold = NULL,
   plot = TRUE,
   save_plot = FALSE,
   plot_dir = NULL,
@@ -51,8 +52,7 @@ detect_template(
 
 - template:
 
-  A `TemplateList` object or a list of them (default method), or `NULL`
-  to use all stored templates (LYS method)
+  A `TemplateList` object or a list of them (default
 
 - cor.method:
 
@@ -62,9 +62,20 @@ detect_template(
 
 - proximity_window:
 
-  Numeric or NULL. Within this window (seconds), only the
-  highest-scoring detection is kept per template. `NULL` disables
+  Numeric scalar, numeric vector, named numeric vector, or NULL. Within
+  this window (seconds), only the highest-scoring detection is kept per
+  template. When multiple templates are used, pass a single scalar for a
+  shared window, an unnamed vector for 1-to-1 positional mapping, or a
+  named vector mapping template names to windows. `NULL` disables
   filtering
+
+- threshold:
+
+  Numeric scalar, numeric vector, named numeric vector, or NULL to
+  override template cutoffs. When multiple templates are used, pass a
+  single scalar for a shared threshold, an unnamed vector for 1-to-1
+  positional mapping, or a named vector mapping template names to
+  thresholds.
 
 - plot:
 
@@ -93,11 +104,6 @@ detect_template(
 
   Integer vector. File indices within a session to process (LYS method
   only)
-
-- threshold:
-
-  Named numeric vector or scalar to override stored template cutoffs
-  (LYS method only)
 
 - cores:
 
