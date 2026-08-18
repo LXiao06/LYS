@@ -13,6 +13,7 @@ detect_template(x, ...)
   template,
   cor.method = "pearson",
   proximity_window = NULL,
+  threshold = NULL,
   plot = TRUE,
   save_plot = FALSE,
   plot_dir = NULL,
@@ -40,15 +41,21 @@ detect_template(x, ...)
 
 \item{...}{Additional arguments (currently unused)}
 
-\item{template}{A \code{TemplateList} object or a list of them (default
-method), or \code{NULL} to use all stored templates (LYS method)}
+\item{template}{A \code{TemplateList} object or a list of them (default}
 
 \item{cor.method}{Character. Correlation method passed to
 \code{monitoR::corMatch()}. Default \code{"pearson"}}
 
-\item{proximity_window}{Numeric or NULL. Within this window (seconds),
-only the highest-scoring detection is kept per template. \code{NULL}
-disables filtering}
+\item{proximity_window}{Numeric scalar, numeric vector, named numeric vector,
+or NULL. Within this window (seconds), only the highest-scoring detection
+is kept per template. When multiple templates are used, pass a single scalar
+for a shared window, an unnamed vector for 1-to-1 positional mapping, or a
+named vector mapping template names to windows. \code{NULL} disables filtering}
+
+\item{threshold}{Numeric scalar, numeric vector, named numeric vector, or NULL
+to override template cutoffs. When multiple templates are used, pass a single scalar
+for a shared threshold, an unnamed vector for 1-to-1 positional mapping, or a
+named vector mapping template names to thresholds.}
 
 \item{plot}{Logical. Draw detection plots interactively. Default \code{TRUE}}
 
@@ -65,9 +72,6 @@ to (LYS method only)}
 
 \item{indices}{Integer vector. File indices within a session to process
 (LYS method only)}
-
-\item{threshold}{Named numeric vector or scalar to override stored template
-cutoffs (LYS method only)}
 
 \item{cores}{Integer. Number of parallel workers (LYS method only)}
 

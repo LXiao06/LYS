@@ -241,12 +241,13 @@ create_template.lys <- function(x,   # x is LYS object
 #'
 #' @param x A \code{lys} object or a path to a WAV file
 #' @param template A \code{TemplateList} object or a list of them (default
-#'   method), or \code{NULL} to use all stored templates (LYS method)
 #' @param cor.method Character. Correlation method passed to
 #'   \code{monitoR::corMatch()}. Default \code{"pearson"}
-#' @param proximity_window Numeric or NULL. Within this window (seconds),
-#'   only the highest-scoring detection is kept per template. \code{NULL}
-#'   disables filtering
+#' @param proximity_window Numeric scalar, numeric vector, named numeric vector,
+#'   or NULL. Within this window (seconds), only the highest-scoring detection
+#'   is kept per template. When multiple templates are used, pass a single scalar
+#'   for a shared window, an unnamed vector for 1-to-1 positional mapping, or a
+#'   named vector mapping template names to windows. \code{NULL} disables filtering
 #' @param plot Logical. Draw detection plots interactively. Default \code{TRUE}
 #' @param save_plot Logical. Save detection plots to disk. Default \code{FALSE}
 #'   (default method), \code{TRUE} (LYS method)
@@ -257,8 +258,10 @@ create_template.lys <- function(x,   # x is LYS object
 #'   to (LYS method only)
 #' @param indices Integer vector. File indices within a session to process
 #'   (LYS method only)
-#' @param threshold Named numeric vector or scalar to override stored template
-#'   cutoffs (LYS method only)
+#' @param threshold Numeric scalar, numeric vector, named numeric vector, or NULL
+#'   to override template cutoffs. When multiple templates are used, pass a single scalar
+#'   for a shared threshold, an unnamed vector for 1-to-1 positional mapping, or a
+#'   named vector mapping template names to thresholds.
 #' @param cores Integer. Number of parallel workers (LYS method only)
 #' @param plot_percent Numeric. Percentage of files to plot (LYS method only)
 #' @param output_dir Character. Root output directory (LYS method only)
@@ -291,6 +294,7 @@ detect_template.default <- function(x,   # x is WAV file path
                                     template,
                                     cor.method = "pearson",
                                     proximity_window = NULL,
+                                    threshold = NULL,
                                     plot = TRUE,
                                     save_plot = FALSE,
                                     plot_dir = NULL,
@@ -307,6 +311,10 @@ detect_template.default <- function(x,   # x is WAV file path
   }
   if (is.list(template) && !inherits(template, "TemplateList")) {
     template <- do.call(monitoR::combineCorTemplates, template)
+  }
+
+  if (!is.null(threshold)) {
+    template <- set_template_thresholds(template, threshold)
   }
 
   if (save_plot && is.null(plot_dir)) {
@@ -419,6 +427,10 @@ detect_template.lys <- function(x,   # x is LYS object
 
   template <- combine_lys_templates(x$templates$template_list, template_name)
   template <- set_template_thresholds(template, threshold)
+
+  if (!is.null(proximity_window)) {
+    proximity_window <- normalize_proximity_window(proximity_window, template_name)
+  }
 
   metadata <- x$metadata
   if (!is.null(session)) {
@@ -713,13 +725,46 @@ ensure_template_registry_slots <- function(x) {
 #' @noRd
 #' @keywords internal
 filter_template_peaks <- function(peaks, proximity_window = NULL) {
-  if (is.null(proximity_window)) {
+  if (is.null(proximity_window) || is.null(peaks)) {
     return(peaks)
   }
 
-  for (template_name in names(peaks@detections)) {
+  tmpl_names <- names(peaks@detections)
+  if (is.null(tmpl_names) || !length(tmpl_names)) {
+    return(peaks)
+  }
+
+  if (is.numeric(proximity_window)) {
+    if (length(proximity_window) == 1L && is.null(names(proximity_window))) {
+      proximity_window <- stats::setNames(rep(proximity_window, length(tmpl_names)), tmpl_names)
+    } else if (is.null(names(proximity_window)) && length(proximity_window) == length(tmpl_names)) {
+      proximity_window <- stats::setNames(proximity_window, tmpl_names)
+    }
+  }
+
+  for (template_name in tmpl_names) {
+    win <- if (!is.null(names(proximity_window)) && template_name %in% names(proximity_window)) {
+      proximity_window[[template_name]]
+    } else if (is.numeric(proximity_window) && length(proximity_window) == 1L) {
+      proximity_window[[1]]
+    } else {
+      NA_real_
+    }
+
+    if (length(win) != 1L || is.na(win) || is.nan(win) || win <= 0) {
+      next
+    }
+
     detections <- peaks@detections[[template_name]]
-    if (is.null(detections) || !nrow(detections)) {
+    if (is.null(detections) || !is.data.frame(detections) || !nrow(detections)) {
+      next
+    }
+
+    valid_mask <- !is.na(detections$time) & !is.nan(detections$time) &
+      !is.na(detections$score) & !is.nan(detections$score)
+    detections <- detections[valid_mask, , drop = FALSE]
+    if (!nrow(detections)) {
+      peaks@detections[[template_name]] <- detections
       next
     }
 
@@ -731,7 +776,8 @@ filter_template_peaks <- function(peaks, proximity_window = NULL) {
 
     if (nrow(detections) > 1L) {
       for (i in 2:nrow(detections)) {
-        if (detections$time[i] - anchor_time > proximity_window) {
+        time_diff <- detections$time[i] - anchor_time
+        if (isTRUE(time_diff > win)) {
           current_group <- current_group + 1L
           anchor_time <- detections$time[i]
         }
@@ -743,11 +789,20 @@ filter_template_peaks <- function(peaks, proximity_window = NULL) {
       tapply(
         seq_len(nrow(detections)),
         group_ids,
-        function(idx) idx[which.max(detections$score[idx])]
+        function(idx) {
+          if (!length(idx)) return(integer(0))
+          best <- which.max(detections$score[idx])
+          if (length(best)) idx[best] else idx[1]
+        }
       ),
       use.names = FALSE
     )
-    peaks@detections[[template_name]] <- detections[sort(keep), , drop = FALSE]
+
+    if (length(keep)) {
+      peaks@detections[[template_name]] <- detections[sort(keep), , drop = FALSE]
+    } else {
+      peaks@detections[[template_name]] <- detections[0, , drop = FALSE]
+    }
   }
 
   peaks
@@ -788,11 +843,11 @@ combine_lys_templates <- function(template_list, template_names) {
 #' Override template score cutoffs
 #'
 #' @description
-#' Applies a scalar or named-vector threshold override to the stored cutoffs
-#' of a \code{TemplateList} object.
+#' Applies a scalar, unnamed vector (positional 1-to-1), or named-vector
+#' threshold override to the stored cutoffs of a \code{TemplateList} object.
 #'
 #' @param template A \code{TemplateList} object
-#' @param thresholds NULL (no change), a scalar, or a named numeric vector
+#' @param thresholds NULL (no change), a scalar numeric, an unnamed numeric vector, or a named numeric vector
 #'
 #' @return The updated \code{TemplateList} object.
 #'
@@ -803,16 +858,109 @@ set_template_thresholds <- function(template, thresholds) {
     return(template)
   }
 
-  current <- monitoR::templateCutoff(template)
-  if (length(thresholds) == 1L && is.null(names(thresholds))) {
-    thresholds <- stats::setNames(rep(thresholds, length(current)), names(current))
+  if (!is.numeric(thresholds) || !length(thresholds)) {
+    stop("threshold must be NULL, a numeric scalar, or a numeric vector.", call. = FALSE)
   }
 
-  if (is.null(names(thresholds)) || any(!names(thresholds) %in% names(current))) {
-    stop("threshold must be a scalar or a named vector matching template names.", call. = FALSE)
+  if (any(thresholds < 0 | thresholds > 1, na.rm = TRUE)) {
+    stop("threshold values must be between 0 and 1.", call. = FALSE)
+  }
+
+  current <- monitoR::templateCutoff(template)
+
+  # Case 1: Single unnamed scalar -> replicate across all templates
+  if (length(thresholds) == 1L && is.null(names(thresholds))) {
+    thresholds <- stats::setNames(rep(thresholds, length(current)), names(current))
+  } else if (!is.null(names(thresholds))) {
+    # Case 2: Named numeric vector -> validate names
+    invalid_names <- names(thresholds)[!names(thresholds) %in% names(current)]
+    if (length(invalid_names)) {
+      stop(
+        sprintf(
+          "Unknown template name(s) in threshold: %s. Expected one of: %s",
+          paste(invalid_names, collapse = ", "),
+          paste(names(current), collapse = ", ")
+        ),
+        call. = FALSE
+      )
+    }
+  } else if (length(thresholds) == length(current)) {
+    # Case 3: Unnamed vector matching template count 1-to-1
+    thresholds <- stats::setNames(thresholds, names(current))
+  } else {
+    stop(
+      sprintf(
+        "threshold length (%d) must match the number of templates (%d), or be a named vector.",
+        length(thresholds),
+        length(current)
+      ),
+      call. = FALSE
+    )
   }
 
   current[names(thresholds)] <- thresholds
   monitoR::templateCutoff(template) <- current
   template
 }
+
+
+#' Normalize and validate proximity window settings
+#'
+#' @param proximity_window NULL, a scalar numeric, an unnamed numeric vector, or a named numeric vector
+#' @param template_names Character vector of template names
+#'
+#' @return A named numeric vector of proximity windows, or NULL.
+#'
+#' @noRd
+#' @keywords internal
+normalize_proximity_window <- function(proximity_window, template_names) {
+  if (is.null(proximity_window)) {
+    return(NULL)
+  }
+
+  if (!is.numeric(proximity_window) || !length(proximity_window)) {
+    stop("proximity_window must be NULL, a numeric scalar, or a numeric vector.", call. = FALSE)
+  }
+
+  if (any(proximity_window < 0, na.rm = TRUE)) {
+    stop("proximity_window values must be non-negative.", call. = FALSE)
+  }
+
+  # Case 1: Single unnamed scalar -> replicate across all templates
+  if (length(proximity_window) == 1L && is.null(names(proximity_window))) {
+    return(stats::setNames(rep(proximity_window, length(template_names)), template_names))
+  }
+
+  # Case 2: Named numeric vector -> validate names and align
+  if (!is.null(names(proximity_window))) {
+    invalid_names <- names(proximity_window)[!names(proximity_window) %in% template_names]
+    if (length(invalid_names)) {
+      stop(
+        sprintf(
+          "Unknown template name(s) in proximity_window: %s. Expected one of: %s",
+          paste(invalid_names, collapse = ", "),
+          paste(template_names, collapse = ", ")
+        ),
+        call. = FALSE
+      )
+    }
+    res <- stats::setNames(rep(NA_real_, length(template_names)), template_names)
+    res[names(proximity_window)] <- proximity_window
+    return(res)
+  }
+
+  # Case 3: Unnamed vector matching template_names length 1-to-1
+  if (length(proximity_window) == length(template_names)) {
+    return(stats::setNames(proximity_window, template_names))
+  }
+
+  stop(
+    sprintf(
+      "proximity_window length (%d) must match the number of templates (%d), or be a named vector.",
+      length(proximity_window),
+      length(template_names)
+    ),
+    call. = FALSE
+  )
+}
+
