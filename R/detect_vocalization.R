@@ -972,6 +972,8 @@ is_detection_error <- function(x) {
 #' @description
 #' Returns the normalised output_dir path, creating it if needed. When
 #' output_dir is NULL, falls back to the parent directory of base_path.
+#' When output_dir is a relative path, it is resolved relative to the
+#' parent directory of base_path.
 #'
 #' @param base_path Character. LYS base path
 #' @param output_dir Character or NULL. Desired output directory
@@ -981,17 +983,23 @@ is_detection_error <- function(x) {
 #' @noRd
 #' @keywords internal
 resolve_lys_output_dir <- function(base_path, output_dir = NULL) {
+  parent_dir <- dirname(normalizePath(base_path, mustWork = TRUE))
+
   if (!is.null(output_dir)) {
     if (!is.character(output_dir) || length(output_dir) != 1L || is.na(output_dir) ||
         !nzchar(output_dir)) {
       stop("output_dir must be a single non-empty path.", call. = FALSE)
     }
 
+    is_abs <- grepl("^(?:[A-Za-z]:|/|~)", output_dir)
+    if (!is_abs) {
+      output_dir <- file.path(parent_dir, output_dir)
+    }
+
     dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
     return(normalizePath(output_dir, mustWork = TRUE))
   }
 
-  parent_dir <- dirname(normalizePath(base_path, mustWork = TRUE))
   dir.create(parent_dir, recursive = TRUE, showWarnings = FALSE)
   normalizePath(parent_dir, mustWork = TRUE)
 }

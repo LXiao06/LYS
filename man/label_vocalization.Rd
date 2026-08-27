@@ -12,6 +12,7 @@ label_vocalization(
   files = NULL,
   cores = NULL,
   save_plot = TRUE,
+  save_csv = FALSE,
   plot_percent = 100,
   output_dir = NULL,
   wl = 1024,
@@ -41,6 +42,9 @@ relabels all vocalizations. Other rows keep their existing labels.}
 
 \item{save_plot}{Logical. Save review spectrograms to disk. Default
 \code{TRUE}.}
+
+\item{save_csv}{Logical. Save/update labeled vocalization tables (all-sessions
+and per-session CSVs) to disk. Default \code{FALSE}.}
 
 \item{plot_percent}{Numeric. Percentage of files to plot. Default \code{100}.}
 

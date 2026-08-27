@@ -61,9 +61,15 @@ map_vocalization_sessions <- function(lys,
     stop("No labels remain after dropping TBD/undefined labels.", call. = FALSE)
   }
 
-  keep <- !is.na(vocalizations[[label_col]]) &
-    vocalizations[[label_col]] %in% labels &
-    !vocalizations[[label_col]] %in% drop_labels
+  raw_labels <- vocalizations[[label_col]]
+  compound_match <- vapply(
+    strsplit(raw_labels, ";", fixed = TRUE),
+    function(parts) any(trimws(parts) %in% labels),
+    logical(1)
+  )
+  keep <- !is.na(raw_labels) &
+    (raw_labels %in% labels | compound_match) &
+    !raw_labels %in% drop_labels
   vocalizations <- vocalizations[keep, , drop = FALSE]
   if (!nrow(vocalizations)) {
     warning("No labeled vocalizations remain after filtering.")

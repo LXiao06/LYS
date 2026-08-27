@@ -16,6 +16,8 @@
 #' @param cores Integer. Number of parallel workers. \code{NULL} auto-detects.
 #' @param save_plot Logical. Save review spectrograms to disk. Default
 #'   \code{TRUE}.
+#' @param save_csv Logical. Save/update labeled vocalization tables (all-sessions
+#'   and per-session CSVs) to disk. Default \code{FALSE}.
 #' @param plot_percent Numeric. Percentage of files to plot. Default \code{100}.
 #' @param output_dir Character. Output directory; \code{NULL} uses default.
 #' @param wl Integer. Spectrogram window length in samples. Default \code{1024}.
@@ -49,6 +51,7 @@ label_vocalization <- function(lys,
                                files = NULL,
                                cores = NULL,
                                save_plot = TRUE,
+                               save_csv = FALSE,
                                plot_percent = 100,
                                output_dir = NULL,
                                wl = 1024,
@@ -272,6 +275,33 @@ label_vocalization <- function(lys,
   lys$vocalizations <- as.data.frame(labeled, stringsAsFactors = FALSE)
   lys$misc$last_modified <- Sys.time()
 
+  if (save_csv) {
+    resolved_output_dir <- resolve_lys_output_dir(lys$base_path, output_dir = output_dir)
+    results_dir <- file.path(resolved_output_dir, "vocalization_detection")
+    dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
+
+    utils::write.csv(
+      lys$vocalizations,
+      file = file.path(results_dir, "all_sessions_vocalizations.csv"),
+      row.names = FALSE
+    )
+
+    if ("session_id" %in% names(lys$vocalizations)) {
+      for (sid in unique(lys$vocalizations$session_id)) {
+        sess_rows <- lys$vocalizations[lys$vocalizations$session_id == sid, , drop = FALSE]
+        s_label <- if ("session_label" %in% names(sess_rows)) unique(sess_rows$session_label)[1] else as.character(sid)
+        utils::write.csv(
+          sess_rows,
+          file = file.path(
+            results_dir,
+            paste0(sanitize_detection_label(s_label), "_vocalizations.csv")
+          ),
+          row.names = FALSE
+        )
+      }
+    }
+  }
+
   if (save_plot) {
     if (!is.null(full_labeled)) {
       plot_labeled <- relabeled  # Only re-plot the targeted files
@@ -296,6 +326,10 @@ label_vocalization <- function(lys,
     message("Vocalization labels:")
     print(table(labeled$vocalization_label, useNA = "ifany"))
     message("Access labels via: lys$vocalizations$vocalization_label")
+    if (save_csv) {
+      resolved_output_dir <- resolve_lys_output_dir(lys$base_path, output_dir = output_dir)
+      message("Saved updated labeled vocalization tables to: ", file.path(resolved_output_dir, "vocalization_detection"))
+    }
   }
 
   invisible(lys)

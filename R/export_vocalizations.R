@@ -134,7 +134,8 @@ clip_one_vocalization <- function(row, dest_dir, pad_start, pad_end, overwrite) 
   }
 
   if (is.na(wav_path) || !file.exists(wav_path)) {
-    return(NULL)
+    return(list(path = NA_character_, status = "failed",
+                error_msg = paste("WAV file not found:", wav_path)))
   }
 
   clip_start <- max(0, row$start_time[1] - pad_start)
@@ -156,28 +157,40 @@ clip_one_vocalization <- function(row, dest_dir, pad_start, pad_end, overwrite) 
   out_path <- file.path(dest_dir, out_name)
 
   if (file.exists(out_path) && !overwrite) {
-    return(out_path)  # skip silently
+    return(list(path = out_path, status = "skipped", error_msg = NA_character_))
   }
 
   tryCatch(
     {
-      check_asap_dependency()
-      ASAP::create_audio_clip(
-        wav_path,
-        start_time = clip_start,
-        end_time   = clip_end,
-        output_dir = dest_dir,
-        output_name = tools::file_path_sans_ext(out_name)
-      )
-      out_path
+      if (requireNamespace("tuneR", quietly = TRUE)) {
+        header <- tuneR::readWave(wav_path, header = TRUE)
+        dur <- header$samples / header$sample.rate
+        c_from <- max(0, clip_start)
+        c_to <- min(dur, clip_end)
+        wave_clip <- tuneR::readWave(wav_path, from = c_from, to = c_to, units = "seconds")
+        tuneR::writeWave(wave_clip, filename = out_path)
+      } else if (requireNamespace("av", quietly = TRUE)) {
+        av::av_audio_convert(
+          wav_path,
+          out_path,
+          start_time = clip_start,
+          total_time = max(0.001, clip_end - clip_start),
+          verbose = FALSE
+        )
+      } else {
+        stop("tuneR or av package is required to export clips.", call. = FALSE)
+      }
+
+      if (file.exists(out_path)) {
+        list(path = out_path, status = "ok", error_msg = NA_character_)
+      } else {
+        list(path = NA_character_, status = "failed",
+             error_msg = "File was not created after write attempt")
+      }
     },
     error = function(e) {
-      warning(
-        sprintf("Failed to clip %s [%.2f-%.2f s]: %s",
-                basename(wav_path), clip_start, clip_end, conditionMessage(e)),
-        call. = FALSE
-      )
-      NULL
+      list(path = NA_character_, status = "failed",
+           error_msg = conditionMessage(e))
     }
   )
 }
@@ -338,11 +351,9 @@ export_vocalizations <- function(lys,
 
   # Resolve output directory
   if (is.null(output_dir)) {
-    parent_dir   <- dirname(normalizePath(lys$base_path, mustWork = TRUE))
-    output_dir   <- file.path(parent_dir, "vocalization_clips")
+    output_dir <- "vocalization_clips"
   }
-  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-  output_dir <- normalizePath(output_dir, mustWork = TRUE)
+  output_dir <- resolve_lys_output_dir(lys$base_path, output_dir = output_dir)
 
   # Build export rules
   available_labels <- sort(unique(voc[[label_col]]))
@@ -412,8 +423,14 @@ export_vocalizations <- function(lys,
 
     row_indices <- seq_len(nrow(subset))
 
+    # Capture the current definition of clip_one_vocalization explicitly in
+    # this closure so that PSOCK workers on Linux receive the updated function
+    # via serialisation rather than resolving it from the (possibly stale)
+    # installed LYS namespace on each worker node.
+    .clip_fn <- clip_one_vocalization
+
     clip_one <- function(i) {
-      clip_one_vocalization(
+      .clip_fn(
         row       = subset[i, , drop = FALSE],
         dest_dir  = dest_dir,
         pad_start = pad_start,
@@ -429,25 +446,61 @@ export_vocalizations <- function(lys,
       use_preschedule = FALSE
     )
 
-    # Classify results
-    exported <- vapply(results, function(r) !is.null(r), logical(1))
+    # Classify results safely regardless of worker return type
+    parsed_results <- lapply(results, function(r) {
+      if (is.null(r)) {
+        return(list(path = NA_character_, status = "failed", error_msg = "worker returned NULL"))
+      }
+      if (inherits(r, "try-error")) {
+        return(list(path = NA_character_, status = "failed", error_msg = as.character(r)))
+      }
+      if (is.list(r) && !is.null(r[["status"]])) {
+        p <- if (is.null(r[["path"]]) || is.na(r[["path"]]) || !nzchar(r[["path"]])) NA_character_ else as.character(r[["path"]])
+        msg <- if (!is.null(r[["error_msg"]]) && !is.na(r[["error_msg"]])) as.character(r[["error_msg"]]) else NA_character_
+        return(list(path = p, status = as.character(r[["status"]]), error_msg = msg))
+      }
+      if (is.character(r) && length(r) == 1L) {
+        if (is.na(r) || !nzchar(r)) {
+          return(list(path = NA_character_, status = "failed", error_msg = "worker returned empty path"))
+        }
+        if (file.exists(r)) {
+          return(list(path = as.character(r), status = "ok", error_msg = NA_character_))
+        } else {
+          return(list(path = NA_character_, status = "failed",
+                      error_msg = paste("returned path does not exist:", r)))
+        }
+      }
+      list(path = NA_character_, status = "failed",
+           error_msg = paste("unexpected return type:", class(r)[1]))
+    })
+
+    statuses   <- vapply(parsed_results, function(pr) pr$status, character(1))
+    out_paths  <- vapply(parsed_results, function(pr) pr$path, character(1))
+    error_msgs <- vapply(parsed_results, function(pr) {
+      if (is.null(pr$error_msg) || is.na(pr$error_msg)) NA_character_ else pr$error_msg
+    }, character(1))
+
     n_attempted <- nrow(subset)
-    n_exported  <- sum(exported)
-    n_skipped   <- sum(vapply(results, function(r) {
-      !is.null(r) && file.exists(r) && !overwrite
-    }, logical(1)))
-    n_failed    <- n_attempted - n_exported
+    n_exported  <- sum(statuses == "ok")
+    n_skipped   <- sum(statuses == "skipped")
+    n_failed    <- sum(statuses == "failed")
 
     if (verbose) {
       message(sprintf(
         "    Exported: %d  |  Skipped (already exist): %d  |  Failed: %d",
         n_exported, n_skipped, n_failed
       ))
+      if (n_failed > 0) {
+        failed_msgs <- unique(error_msgs[statuses == "failed" & !is.na(error_msgs)])
+        if (length(failed_msgs)) {
+          message("    Failure reason(s): ", paste(utils::head(failed_msgs, 3L), collapse = " | "))
+        }
+      }
     }
 
     # Build manifest entries for this rule
     for (i in seq_len(nrow(subset))) {
-      out_path <- results[[i]]
+      out_path <- out_paths[i]
       manifest_rows[[length(manifest_rows) + 1L]] <- data.frame(
         export_rule       = rule$label,
         export_folder     = rule$folder,
@@ -461,8 +514,8 @@ export_vocalizations <- function(lys,
         pad_end_sec       = pad_end,
         session_label     = if ("session_label" %in% names(subset)) subset$session_label[i] else NA_character_,
         recording_date    = if ("recording_date" %in% names(subset)) subset$recording_date[i] else NA_character_,
-        clip_path         = if (is.null(out_path)) NA_character_ else out_path,
-        export_status     = if (is.null(out_path)) "failed" else "ok",
+        clip_path         = if (is.na(out_path)) NA_character_ else out_path,
+        export_status     = statuses[i],
         stringsAsFactors  = FALSE
       )
     }
