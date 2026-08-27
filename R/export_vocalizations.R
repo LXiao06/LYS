@@ -126,16 +126,38 @@ match_export_rule <- function(vocalizations, rule, label_col, label_sep = ";") {
 #'
 #' @noRd
 #' @keywords internal
-clip_one_vocalization <- function(row, dest_dir, pad_start, pad_end, overwrite) {
-  wav_path <- if ("file_path" %in% names(row) && nzchar(row$file_path[1])) {
+clip_one_vocalization <- function(row, dest_dir, pad_start, pad_end, overwrite,
+                                   base_path = NULL) {
+  # Resolve the source WAV path, with a relative_path fallback for portability
+  # across machines (e.g. detect on machine A, export on machine B with a
+  # different root but same directory structure).
+  wav_path <- NA_character_
+
+  stored_path <- if ("file_path" %in% names(row) && nzchar(row$file_path[1])) {
     row$file_path[1]
   } else {
     NA_character_
   }
 
-  if (is.na(wav_path) || !file.exists(wav_path)) {
+  if (!is.na(stored_path) && file.exists(stored_path)) {
+    wav_path <- stored_path
+  } else if (!is.null(base_path) &&
+             "relative_path" %in% names(row) &&
+             !is.na(row$relative_path[1]) &&
+             nzchar(row$relative_path[1])) {
+    candidate <- file.path(base_path, row$relative_path[1])
+    if (file.exists(candidate)) wav_path <- candidate
+  }
+
+  if (is.na(wav_path)) {
+    tried <- paste(
+      c(if (!is.na(stored_path)) paste("absolute:", stored_path),
+        if (!is.null(base_path) && "relative_path" %in% names(row))
+          paste("relative:", file.path(base_path, row$relative_path[1]))),
+      collapse = "; "
+    )
     return(list(path = NA_character_, status = "failed",
-                error_msg = paste("WAV file not found:", wav_path)))
+                error_msg = paste("WAV file not found. Tried:", tried)))
   }
 
   clip_start <- max(0, row$start_time[1] - pad_start)
@@ -427,7 +449,8 @@ export_vocalizations <- function(lys,
     # this closure so that PSOCK workers on Linux receive the updated function
     # via serialisation rather than resolving it from the (possibly stale)
     # installed LYS namespace on each worker node.
-    .clip_fn <- clip_one_vocalization
+    .clip_fn  <- clip_one_vocalization
+    .base_path <- lys$base_path   # passed to workers for relative_path fallback
 
     clip_one <- function(i) {
       .clip_fn(
@@ -435,7 +458,8 @@ export_vocalizations <- function(lys,
         dest_dir  = dest_dir,
         pad_start = pad_start,
         pad_end   = pad_end,
-        overwrite = overwrite
+        overwrite = overwrite,
+        base_path = .base_path
       )
     }
 

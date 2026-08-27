@@ -1,6 +1,86 @@
 # LYS Objects
 # Update date : Jun. 05, 2026
 
+
+#' Re-anchor a LYS object to a new data root
+#'
+#' @description
+#' When a LYS object is created on one machine (e.g., via
+#' \code{\link{detect_vocalization}}) and then used on another machine where
+#' the raw recordings live under a different root directory (but the same
+#' internal directory structure), absolute paths stored in the object will be
+#' stale.  \code{update_lys_paths()} updates \code{lys$base_path},
+#' \code{lys$metadata$file_path}, and \code{lys$vocalizations$file_path} by
+#' re-joining each file's \code{relative_path} with \code{new_base_path}.
+#'
+#' The function validates that the new root exists and warns if any
+#' reconstructed paths cannot be found on disk.
+#'
+#' @param lys A \code{lys} object.
+#' @param new_base_path Character. The new root directory that contains the
+#'   same recording structure as the original \code{lys$base_path}.
+#' @param check_files Logical. If \code{TRUE} (default), warn about any
+#'   reconstructed paths that do not exist on disk.
+#'
+#' @return The updated \code{lys} object.
+#'
+#' @examples
+#' \dontrun{
+#' # Detect on machine A, save:
+#' saveRDS(lys, "lys.rds")
+#'
+#' # On machine B, where data is under a different root:
+#' lys <- readRDS("lys.rds")
+#' lys <- update_lys_paths(lys, new_base_path = "/new/root/O703 (B16)")
+#' }
+#'
+#' @export
+update_lys_paths <- function(lys, new_base_path, check_files = TRUE) {
+  if (!inherits(lys, "lys")) {
+    stop("lys must be a LYS object.", call. = FALSE)
+  }
+  if (!is.character(new_base_path) || length(new_base_path) != 1L ||
+      is.na(new_base_path) || !nzchar(new_base_path)) {
+    stop("new_base_path must be a single non-empty path string.", call. = FALSE)
+  }
+  new_base_path <- normalizePath(new_base_path, mustWork = TRUE)
+
+  rebuild_paths <- function(df) {
+    if (!is.data.frame(df) || !nrow(df)) return(df)
+    if (!"relative_path" %in% names(df)) return(df)
+    df$file_path <- file.path(new_base_path, df$relative_path)
+    df
+  }
+
+  lys$base_path   <- new_base_path
+  lys$metadata    <- rebuild_paths(lys$metadata)
+  lys$vocalizations <- rebuild_paths(lys$vocalizations)
+
+  if (check_files) {
+    check_df <- function(df, label) {
+      if (!is.data.frame(df) || !nrow(df) || !"file_path" %in% names(df)) return()
+      missing <- df$file_path[!file.exists(df$file_path)]
+      missing <- unique(missing[!is.na(missing)])
+      if (length(missing)) {
+        warning(
+          sprintf(
+            "%d path(s) in lys$%s could not be found under the new base. ",
+            length(missing), label
+          ),
+          "Check that new_base_path points to the correct root.\n",
+          "First missing: ", missing[1],
+          call. = FALSE
+        )
+      }
+    }
+    check_df(lys$metadata, "metadata")
+    check_df(lys$vocalizations, "vocalizations")
+  }
+
+  message(sprintf("lys paths updated to new base: %s", new_base_path))
+  lys
+}
+
 #' Create a LYS object from a directory of WAV files
 #'
 #' @description
