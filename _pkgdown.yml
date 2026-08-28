@@ -42,6 +42,7 @@ reference:
     contents:
       - create_lys_object
       - get_wav_indices
+      - update_lys_paths
 
   - title: "Audio Visualization & Snippet Export"
     desc: "Functions for visualising audio spectrograms and exporting audio clips"
