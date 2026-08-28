@@ -67,16 +67,16 @@ plus:
   Original session label prefixed with `"<bird_id>::"` to ensure global
   uniqueness.
 
-## Inputs — two ways to supply data
+## Inputs - two ways to supply data
 
-**Option A — named list of already-loaded lys objects:**
+**Option A - named list of already-loaded lys objects:**
 
 
     pool <- pool_lys_session_maps(
       lys_list = list(bird_A = lys_bird_A, bird_B = lys_bird_B)
     )
 
-**Option B — a folder of `.rds` files + a bird name filter:**
+**Option B - a folder of `.rds` files + a bird name filter:**
 
 
     pool <- pool_lys_session_maps(
@@ -92,12 +92,12 @@ folder.
 
 ``` r
 if (FALSE) { # \dontrun{
-# Option A — named list
+# Option A - named list
 pool <- pool_lys_session_maps(
   lys_list = list(O703 = lys_O703, O704 = lys_O704)
 )
 
-# Option B — folder of RDS files
+# Option B - folder of RDS files
 pool <- pool_lys_session_maps(
   rds_dir   = "/project/lys_objects",
   bird_list = c("O703", "O704")

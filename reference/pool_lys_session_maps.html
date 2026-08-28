@@ -124,16 +124,16 @@ Default <code>TRUE</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
-    <h2 id="inputs-two-ways-to-supply-data">Inputs — two ways to supply data<a class="anchor" aria-label="anchor" href="#inputs-two-ways-to-supply-data"></a></h2>
+    <h2 id="inputs-two-ways-to-supply-data">Inputs - two ways to supply data<a class="anchor" aria-label="anchor" href="#inputs-two-ways-to-supply-data"></a></h2>
 
 
 
-<p><strong>Option A — named list of already-loaded lys objects:</strong></p><div class="sourceCode"><pre><code><span></span>
+<p><strong>Option A - named list of already-loaded lys objects:</strong></p><div class="sourceCode"><pre><code><span></span>
 <span><span class="va">pool</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/pool_lys_session_maps.html">pool_lys_session_maps</a></span><span class="op">(</span></span>
 <span>  lys_list <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>bird_A <span class="op">=</span> <span class="va">lys_bird_A</span>, bird_B <span class="op">=</span> <span class="va">lys_bird_B</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 
-<p><strong>Option B — a folder of <code>.rds</code> files + a bird name filter:</strong></p><div class="sourceCode"><pre><code><span></span>
+<p><strong>Option B - a folder of <code>.rds</code> files + a bird name filter:</strong></p><div class="sourceCode"><pre><code><span></span>
 <span><span class="va">pool</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/pool_lys_session_maps.html">pool_lys_session_maps</a></span><span class="op">(</span></span>
 <span>  rds_dir   <span class="op">=</span> <span class="st">"/project/lys_objects"</span>,</span>
 <span>  bird_list <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"O703"</span>, <span class="st">"O704"</span><span class="op">)</span>   <span class="co"># must match RDS filenames without .rds</span></span>
@@ -145,12 +145,12 @@ in the folder.</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="co"># Option A — named list</span></span></span>
+<span class="r-in"><span><span class="co"># Option A - named list</span></span></span>
 <span class="r-in"><span><span class="va">pool</span> <span class="op">&lt;-</span> <span class="fu">pool_lys_session_maps</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  lys_list <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>O703 <span class="op">=</span> <span class="va">lys_O703</span>, O704 <span class="op">=</span> <span class="va">lys_O704</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Option B — folder of RDS files</span></span></span>
+<span class="r-in"><span><span class="co"># Option B - folder of RDS files</span></span></span>
 <span class="r-in"><span><span class="va">pool</span> <span class="op">&lt;-</span> <span class="fu">pool_lys_session_maps</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  rds_dir   <span class="op">=</span> <span class="st">"/project/lys_objects"</span>,</span></span>
 <span class="r-in"><span>  bird_list <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"O703"</span>, <span class="st">"O704"</span><span class="op">)</span></span></span>

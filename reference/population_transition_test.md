@@ -5,11 +5,11 @@ frequent than `label2 -> label1` *across animals*, using the animal as
 the unit of replication. This avoids the two main pitfalls of naive
 pooling:
 
-1.  **Unequal weight** — animals with more events would dominate naive
+1.  **Unequal weight** - animals with more events would dominate naive
     pooling. Here every animal contributes exactly one data point (its
     asymmetry score or proportion).
 
-2.  **Heterogeneity blindness** — a single animal driving the effect is
+2.  **Heterogeneity blindness** - a single animal driving the effect is
     visible in the per-animal plot and would not survive a sign test or
     Wilcoxon signed-rank test.
 
