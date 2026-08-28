@@ -80,3 +80,14 @@ reference:
       - permutation_transition_test
       - plot_reciprocal_latency
       - conditional_rate_ratio
+
+  - title: "Population-Level Analysis"
+    desc: "Pool LYS objects and test population-level vocalization dynamics"
+    contents:
+      - pool_lys_session_maps
+      - population_transition_test
+      - population_permutation_test
+      - population_rate_ratio
+      - population_peth
+      - population_shuffled_peth
+      - population_point_process_glm
