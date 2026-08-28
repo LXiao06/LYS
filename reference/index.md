@@ -17,6 +17,8 @@ Functions for creating and managing core LYS objects
   : Create a LYS object from a directory of WAV files
 - [`get_wav_indices()`](https://lxiao06.github.io/LYS/reference/get_wav_indices.md)
   : Look up metadata row indices for WAV files in a LYS object
+- [`update_lys_paths()`](https://lxiao06.github.io/LYS/reference/update_lys_paths.md)
+  : Re-anchor a LYS object to a new data root
 
 ## Audio Visualization & Snippet Export
 
@@ -75,3 +77,25 @@ Statistical analysis of vocalization transitions and latencies
   : Plot Reciprocal Onset Latency Distributions
 - [`conditional_rate_ratio()`](https://lxiao06.github.io/LYS/reference/conditional_rate_ratio.md)
   : Conditional Rate Ratio for Vocalization Transitions
+
+## Population-Level Analysis
+
+Pool LYS objects and test population-level vocalization dynamics
+
+- [`pool_lys_session_maps()`](https://lxiao06.github.io/LYS/reference/pool_lys_session_maps.md)
+  : Pool vocalization session maps from multiple animals
+- [`population_transition_test()`](https://lxiao06.github.io/LYS/reference/population_transition_test.md)
+  : Population-level test for directional transition asymmetry
+- [`population_permutation_test()`](https://lxiao06.github.io/LYS/reference/population_permutation_test.md)
+  : Animal-respecting permutation test for population-level transition
+  asymmetry
+- [`population_rate_ratio()`](https://lxiao06.github.io/LYS/reference/population_rate_ratio.md)
+  : Population-level Conditional Rate Ratio Analysis
+- [`population_peth()`](https://lxiao06.github.io/LYS/reference/population_peth.md)
+  : Peri-Event Time Histogram (PETH) and Multi-Scale Triggering Analysis
+- [`population_shuffled_peth()`](https://lxiao06.github.io/LYS/reference/population_shuffled_peth.md)
+  : Shuffled Surrogate PETH for Testing Pointwise Time-Window
+  Significance
+- [`population_point_process_glm()`](https://lxiao06.github.io/LYS/reference/population_point_process_glm.md)
+  : Point-Process GLM for Disentangling Triggering vs. Refractory
+  Suppression
