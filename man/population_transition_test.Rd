@@ -56,10 +56,10 @@ animal as the unit of replication.  This avoids the two main pitfalls of
 naive pooling:
 
 \enumerate{
-\item \strong{Unequal weight} — animals with more events would dominate
+\item \strong{Unequal weight} - animals with more events would dominate
 naive pooling.  Here every animal contributes exactly one data point
 (its asymmetry score or proportion).
-\item \strong{Heterogeneity blindness} — a single animal driving the
+\item \strong{Heterogeneity blindness} - a single animal driving the
 effect is visible in the per-animal plot and would not survive a
 sign test or Wilcoxon signed-rank test.
 }

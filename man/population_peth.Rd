@@ -66,7 +66,7 @@ by resolving the response probability at fine temporal resolution before and
 after each trigger event.
 
 A fixed wide window (such as 120 s) can dilute a sharp, short-latency triggering
-effect (e.g. a vocal response within 2–10 s) with baseline noise.
+effect (e.g. a vocal response within 2-10 s) with baseline noise.
 \code{population_peth()} solves this via two complementary analyses:
 
 \enumerate{

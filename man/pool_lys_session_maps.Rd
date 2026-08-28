@@ -52,17 +52,17 @@ bird A and \code{"Session_1"} from bird B are treated as separate sessions.
 A \code{bird_id} column is also added so results can be grouped or
 stratified by individual.
 }
-\section{Inputs — two ways to supply data}{
+\section{Inputs - two ways to supply data}{
 
 
-\strong{Option A — named list of already-loaded lys objects:}
+\strong{Option A - named list of already-loaded lys objects:}
 \preformatted{
 pool <- pool_lys_session_maps(
   lys_list = list(bird_A = lys_bird_A, bird_B = lys_bird_B)
 )
 }
 
-\strong{Option B — a folder of \code{.rds} files + a bird name filter:}
+\strong{Option B - a folder of \code{.rds} files + a bird name filter:}
 \preformatted{
 pool <- pool_lys_session_maps(
   rds_dir   = "/project/lys_objects",
@@ -76,12 +76,12 @@ in the folder.
 
 \examples{
 \dontrun{
-# Option A — named list
+# Option A - named list
 pool <- pool_lys_session_maps(
   lys_list = list(O703 = lys_O703, O704 = lys_O704)
 )
 
-# Option B — folder of RDS files
+# Option B - folder of RDS files
 pool <- pool_lys_session_maps(
   rds_dir   = "/project/lys_objects",
   bird_list = c("O703", "O704")

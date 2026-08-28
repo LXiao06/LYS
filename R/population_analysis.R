@@ -1,9 +1,7 @@
 # Population-level analysis helpers
-# Update date : Aug. 27, 2026
+# Update date : Aug. 28, 2026
 
-# ---------------------------------------------------------------------------
-# pool_lys_session_maps()
-# ---------------------------------------------------------------------------
+# Pool LYS Session Maps ----
 
 #' Pool vocalization session maps from multiple animals
 #'
@@ -21,16 +19,16 @@
 #' A \code{bird_id} column is also added so results can be grouped or
 #' stratified by individual.
 #'
-#' @section Inputs — two ways to supply data:
+#' @section Inputs - two ways to supply data:
 #'
-#' **Option A — named list of already-loaded lys objects:**
+#' **Option A - named list of already-loaded lys objects:**
 #' \preformatted{
 #' pool <- pool_lys_session_maps(
 #'   lys_list = list(bird_A = lys_bird_A, bird_B = lys_bird_B)
 #' )
 #' }
 #'
-#' **Option B — a folder of \code{.rds} files + a bird name filter:**
+#' **Option B - a folder of \code{.rds} files + a bird name filter:**
 #' \preformatted{
 #' pool <- pool_lys_session_maps(
 #'   rds_dir   = "/project/lys_objects",
@@ -63,12 +61,12 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Option A — named list
+#' # Option A - named list
 #' pool <- pool_lys_session_maps(
 #'   lys_list = list(O703 = lys_O703, O704 = lys_O704)
 #' )
 #'
-#' # Option B — folder of RDS files
+#' # Option B - folder of RDS files
 #' pool <- pool_lys_session_maps(
 #'   rds_dir   = "/project/lys_objects",
 #'   bird_list = c("O703", "O704")
@@ -89,7 +87,7 @@
 #'                                     window_sec = 120)
 #' }
 #'
-#' @noRd
+#' @export
 pool_lys_session_maps <- function(lys_list  = NULL,
                                    rds_dir   = NULL,
                                    bird_list = NULL,
@@ -122,7 +120,7 @@ pool_lys_session_maps <- function(lys_list  = NULL,
       # Strategy (in priority order):
       #   1. Exact match              ("G769"    matches "G769.rds")
       #   2. Prefix match             ("lys_G769" would match "G769" if user
-      #                                typed the full stem — already exact)
+      #                                typed the full stem - already exact)
       #   3. Suffix / substring match ("G769" matches "lys_G769.rds")
       # The user's bird_list entry is always used as the bird_id in the output,
       # regardless of the actual filename.
@@ -281,7 +279,7 @@ pool_lys_session_maps <- function(lys_list  = NULL,
 
 
 # ---------------------------------------------------------------------------
-# .per_bird_latency_summary()  (internal helper)
+# Summarize Per-Bird Latency ----
 # ---------------------------------------------------------------------------
 
 #' Compute per-animal latency and transition statistics
@@ -292,7 +290,7 @@ pool_lys_session_maps <- function(lys_list  = NULL,
 #' in each direction, the directional asymmetry score, the proportion of
 #' transitions in the \code{label1 -> label2} direction, and median / mean
 #' onset latencies.  The result is the \emph{unit-of-analysis} for all
-#' population-level tests — each row is one animal.
+#' population-level tests - each row is one animal.
 #'
 #' @param pool Data frame returned by \code{\link{pool_lys_session_maps}}.
 #' @param label1,label2 Character. The two vocalization labels to compare.
@@ -325,12 +323,13 @@ pool_lys_session_maps <- function(lys_list  = NULL,
 #' @examples
 #' \dontrun{
 #' pool <- pool_lys_session_maps(lys_list = list(O703 = lys_O703, O704 = lys_O704))
-#' per_bird <- .per_bird_latency_summary(pool, "BeggingCall", "SongBout", window_sec = 120)
+#' per_bird <- summarize_per_bird_latency(pool, "BeggingCall", "SongBout", window_sec = 120)
 #' print(per_bird)
 #' }
 #'
-#' @export
-.per_bird_latency_summary <- function(pool,
+#' @keywords internal
+#' @noRd
+summarize_per_bird_latency <- function(pool,
                                      label1,
                                      label2,
                                      window_sec       = 120,
@@ -401,9 +400,55 @@ pool_lys_session_maps <- function(lys_list  = NULL,
 }
 
 
-# ---------------------------------------------------------------------------
-# population_transition_test()
-# ---------------------------------------------------------------------------
+#' Format a P Value
+#'
+#' @description
+#' Internal helper used by population-level analysis functions.
+#'
+#' @param p Numeric p value
+#'
+#' @keywords internal
+#' @noRd
+format_p_value <- function(p) {
+  if (is.null(p) || is.na(p)) return("NA")
+  if (p < 0.001) "< 0.001" else sprintf("= %.3f", p)
+}
+
+
+#' Format a Rate Ratio
+#'
+#' @description
+#' Internal helper used by \code{population_rate_ratio()}.
+#'
+#' @param ratio Numeric rate ratio
+#' @param lower Numeric lower confidence limit
+#' @param upper Numeric upper confidence limit
+#'
+#' @keywords internal
+#' @noRd
+format_rate_ratio <- function(ratio, lower, upper) {
+  if (any(is.na(c(ratio, lower, upper)))) return("NA")
+  sprintf("%.2f [95%% CI: %.2f, %.2f]", ratio, lower, upper)
+}
+
+
+#' Format an Odds Ratio
+#'
+#' @description
+#' Internal helper used by \code{population_point_process_glm()}.
+#'
+#' @param ratio Numeric odds ratio
+#' @param lower Numeric lower confidence limit
+#' @param upper Numeric upper confidence limit
+#'
+#' @keywords internal
+#' @noRd
+format_odds_ratio <- function(ratio, lower, upper) {
+  sprintf("%.2fx [%.2f, %.2f]", ratio, lower, upper)
+}
+
+
+# Population Transition Test ----
 
 #' Population-level test for directional transition asymmetry
 #'
@@ -414,10 +459,10 @@ pool_lys_session_maps <- function(lys_list  = NULL,
 #' naive pooling:
 #'
 #' \enumerate{
-#'   \item \strong{Unequal weight} — animals with more events would dominate
+#'   \item \strong{Unequal weight} - animals with more events would dominate
 #'     naive pooling.  Here every animal contributes exactly one data point
 #'     (its asymmetry score or proportion).
-#'   \item \strong{Heterogeneity blindness} — a single animal driving the
+#'   \item \strong{Heterogeneity blindness} - a single animal driving the
 #'     effect is visible in the per-animal plot and would not survive a
 #'     sign test or Wilcoxon signed-rank test.
 #' }
@@ -478,7 +523,7 @@ population_transition_test <- function(pool,
                                        plot             = TRUE,
                                        verbose          = TRUE) {
 
-  pb <- .per_bird_latency_summary(
+  pb <- summarize_per_bird_latency(
     pool             = pool,
     label1           = label1,
     label2           = label2,
@@ -495,7 +540,7 @@ population_transition_test <- function(pool,
   N      <- nrow(active)
 
   if (N == 0L) {
-    warning("No animals had any matched pairs — cannot run population test.",
+    warning("No animals had any matched pairs - cannot run population test.",
             call. = FALSE)
     return(invisible(list(per_bird = pb, sign_test = NULL,
                           wilcox_test = NULL, t_test = NULL,
@@ -511,7 +556,7 @@ population_transition_test <- function(pool,
   sign_test <- if (n_active > 0L) {
     stats::binom.test(n_favour, n_active, p = 0.5, alternative = "two.sided")
   } else {
-    warning("All animals are tied (asymmetry = 0) — sign test not computable.",
+    warning("All animals are tied (asymmetry = 0) - sign test not computable.",
             call. = FALSE)
     NULL
   }
@@ -562,11 +607,6 @@ population_transition_test <- function(pool,
     )
   }, error = function(e) NULL)
 
-  fmt_p <- function(p) {
-    if (is.null(p) || is.na(p)) return("NA")
-    if (p < 0.001) "< 0.001" else sprintf("= %.3f", p)
-  }
-
   if (verbose) {
     message(sprintf(
       "\nPopulation transition test: %s <-> %s  (window = %g s, N = %d animals)\n",
@@ -593,19 +633,19 @@ population_transition_test <- function(pool,
     message(sprintf("  Unweighted mean prop: %.3f  |  Sample-weighted mean prop: %.3f\n",
                     mean(active$prop_1to2), weighted_mean_prop))
     message("  [Unweighted Animal-Level Tests] (treats each animal equally):")
-    message(sprintf("    Sign test         : p %s", fmt_p(if (!is.null(sign_test)) sign_test$p.value else NA)))
+    message(sprintf("    Sign test         : p %s", format_p_value(if (!is.null(sign_test)) sign_test$p.value else NA)))
     message(sprintf("    Wilcoxon signed-rank (prop vs 0.5): p %s",
-                    fmt_p(if (!is.null(wilcox_test)) wilcox_test$p.value else NA)))
+                    format_p_value(if (!is.null(wilcox_test)) wilcox_test$p.value else NA)))
     if (!is.null(t_test))
       message(sprintf("    One-sample t-test (prop vs 0.5)   : p %s",
-                      fmt_p(t_test$p.value)))
+                      format_p_value(t_test$p.value)))
     message("\n  [Sample-Size Weighted Tests] (weights animals by number of pairs):")
     if (!is.null(weighted_t_test))
       message(sprintf("    Weighted t-test   (prop vs 0.5)   : p %s (mean = %.3f, SE = %.3f)",
-                      fmt_p(weighted_t_test$p_value), weighted_t_test$estimate, weighted_t_test$std_error))
+                      format_p_value(weighted_t_test$p_value), weighted_t_test$estimate, weighted_t_test$std_error))
     if (!is.null(quasibinomial_glm))
       message(sprintf("    Quasibinomial GLM (accounting for overdispersion): p %s",
-                      fmt_p(quasibinomial_glm$p_value)))
+                      format_p_value(quasibinomial_glm$p_value)))
   }
 
   # ---- Per-animal dot plot -------------------------------------------------
@@ -635,8 +675,8 @@ population_transition_test <- function(pool,
                      col = "black", lwd = 2)
 
     # Annotate with sign-test p and weighted p
-    sign_p_str <- if (!is.null(sign_test)) fmt_p(sign_test$p.value) else "NA"
-    w_p_str    <- if (!is.null(weighted_t_test)) fmt_p(weighted_t_test$p_value) else "NA"
+    sign_p_str <- if (!is.null(sign_test)) format_p_value(sign_test$p.value) else "NA"
+    w_p_str    <- if (!is.null(weighted_t_test)) format_p_value(weighted_t_test$p_value) else "NA"
     graphics::mtext(
       sprintf("Sign test p %s  |  Weighted t-test p %s",
               sign_p_str, w_p_str),
@@ -657,9 +697,7 @@ population_transition_test <- function(pool,
 }
 
 
-# ---------------------------------------------------------------------------
-# population_permutation_test()
-# ---------------------------------------------------------------------------
+# Population Permutation Test ----
 
 #' Animal-respecting permutation test for population-level transition asymmetry
 #'
@@ -734,8 +772,9 @@ population_permutation_test <- function(pool,
 
   birds <- unique(pool$bird_id)
 
-  # Helper: mean per-animal asymmetry score for a (possibly permuted) pool
-  .mean_asymmetry <- function(df) {
+  # TODO: extract to standalone helper
+  # Calculate mean per-animal asymmetry for a possibly permuted pool
+  mean_asymmetry <- function(df) {
     scores <- vapply(birds, function(bid) {
       bd  <- df[df$bird_id == bid, , drop = FALSE]
       n1  <- nrow(compute_onset_latency(
@@ -755,7 +794,7 @@ population_permutation_test <- function(pool,
     mean(scores)
   }
 
-  obs_stat <- .mean_asymmetry(pool)
+  obs_stat <- mean_asymmetry(pool)
 
   # Identify rows belonging to the two target labels (per animal)
   target_mask <- pool[[label_col]] %in% c(label1, label2)
@@ -778,15 +817,13 @@ population_permutation_test <- function(pool,
       if (length(idx) < 2L) next
       perm_pool[[label_col]][idx] <- sample(pool[[label_col]][idx])
     }
-    .mean_asymmetry(perm_pool)
+    mean_asymmetry(perm_pool)
   }, numeric(1L))
 
   p_val <- mean(null_dist >= obs_stat)
 
-  fmt_p <- function(p) if (p < 0.001) "< 0.001" else sprintf("= %.3f", p)
-
   if (verbose) {
-    message(sprintf("  p (one-sided) %s", fmt_p(p_val)))
+    message(sprintf("  p (one-sided) %s", format_p_value(p_val)))
   }
 
   if (plot) {
@@ -804,14 +841,14 @@ population_permutation_test <- function(pool,
     graphics::abline(v = obs_stat, col = sig_col, lwd = 2, lty = 2)
     graphics::legend(
       "topright",
-      legend   = sprintf("Observed = %+.2f\np %s", obs_stat, fmt_p(p_val)),
+      legend   = sprintf("Observed = %+.2f\np %s", obs_stat, format_p_value(p_val)),
       bty      = "n", cex = 0.85, text.col = sig_col
     )
   }
 
   invisible(list(
     observed_mean_asymmetry = obs_stat,
-    per_bird                = .per_bird_latency_summary(
+    per_bird                = summarize_per_bird_latency(
       pool, label1, label2, window_sec, label_col,
       start_col, end_col, session_col, require_adjacent
     ),
@@ -821,9 +858,7 @@ population_permutation_test <- function(pool,
 }
 
 
-# ---------------------------------------------------------------------------
-# population_rate_ratio()
-# ---------------------------------------------------------------------------
+# Population Rate Ratio ----
 
 #' Population-level Conditional Rate Ratio Analysis
 #'
@@ -899,7 +934,8 @@ population_rate_ratio <- function(pool,
   birds <- unique(pool$bird_id)
 
   # Internal helper for one animal & one direction
-  .calc_crr <- function(df, trigger, response) {
+  # TODO: extract to standalone helper
+  calculate_conditional_rate_ratio <- function(df, trigger, response) {
     sessions   <- unique(df[[session_col]])
     n_trig_tot <- 0L
     n_fg_tot   <- 0L
@@ -994,8 +1030,8 @@ population_rate_ratio <- function(pool,
 
   rows <- lapply(birds, function(bid) {
     bd   <- pool[pool$bird_id == bid, , drop = FALSE]
-    res1 <- .calc_crr(bd, label1, label2)
-    res2 <- .calc_crr(bd, label2, label1)
+    res1 <- calculate_conditional_rate_ratio(bd, label1, label2)
+    res2 <- calculate_conditional_rate_ratio(bd, label2, label1)
 
     data.frame(
       bird_id        = bid,
@@ -1034,7 +1070,8 @@ population_rate_ratio <- function(pool,
   rownames(df_res) <- NULL
 
   # Meta-analytic pooling (inverse-variance weighted fixed/random effects)
-  .pool_rr <- function(log_rrs, vars) {
+  # TODO: extract to standalone helper
+  pool_rate_ratios <- function(log_rrs, vars) {
     valid <- !is.na(log_rrs) & !is.na(vars) & vars > 0
     if (!any(valid)) {
       return(list(rr = NA_real_, ci_low = NA_real_, ci_high = NA_real_, p_value = NA_real_))
@@ -1054,8 +1091,8 @@ population_rate_ratio <- function(pool,
     )
   }
 
-  pool_1to2 <- .pool_rr(df_res$log_rr_1to2, df_res$var_1to2)
-  pool_2to1 <- .pool_rr(df_res$log_rr_2to1, df_res$var_2to1)
+  pool_1to2 <- pool_rate_ratios(df_res$log_rr_1to2, df_res$var_1to2)
+  pool_2to1 <- pool_rate_ratios(df_res$log_rr_2to1, df_res$var_2to1)
 
   # Paired directional contrast across birds (ln(RR_1to2) vs ln(RR_2to1))
   diff_log_rr <- df_res$log_rr_1to2 - df_res$log_rr_2to1
@@ -1082,12 +1119,6 @@ population_rate_ratio <- function(pool,
     tryCatch(stats::t.test(diff_log_rr[valid_diff], mu = 0), error = function(e) NULL)
   } else NULL
 
-  fmt_p  <- function(p) if (is.null(p) || is.na(p)) "NA" else if (p < 0.001) "< 0.001" else sprintf("= %.3f", p)
-  fmt_rr <- function(r, lo, hi) {
-    if (any(is.na(c(r, lo, hi)))) return("NA")
-    sprintf("%.2f [95%% CI: %.2f, %.2f]", r, lo, hi)
-  }
-
   if (verbose) {
     message(sprintf(
       "\n=========================================================================\nPopulation Conditional Rate Ratio Analysis: %s <-> %s (window = %g s, N = %d)\n=========================================================================",
@@ -1100,15 +1131,15 @@ population_rate_ratio <- function(pool,
     message(paste(rep("-", 80), collapse = ""))
     for (i in seq_len(nrow(df_res))) {
       r <- df_res[i, ]
-      rr_str <- fmt_rr(r$rr_1to2, r$ci_low_1to2, r$ci_high_1to2)
+      rr_str <- format_rate_ratio(r$rr_1to2, r$ci_low_1to2, r$ci_high_1to2)
       message(sprintf("  %-10s  %7d  %7d  %10.4f  %10.4f  %-23s  %7s",
                       r$bird_id, r$n_fg_1to2, r$n_bg_1to2, r$rate_fg_1to2, r$rate_bg_1to2,
-                      rr_str, fmt_p(r$p_val_1to2)))
+                      rr_str, format_p_value(r$p_val_1to2)))
     }
     message(paste(rep("-", 80), collapse = ""))
     message(sprintf("  Meta-analytic Pooled RR : %s (p %s)",
-                    fmt_rr(pool_1to2$rr, pool_1to2$ci_low, pool_1to2$ci_high),
-                    fmt_p(pool_1to2$p_value)))
+                    format_rate_ratio(pool_1to2$rr, pool_1to2$ci_low, pool_1to2$ci_high),
+                    format_p_value(pool_1to2$p_value)))
 
     message(sprintf("\n[Direction 2: %s -> %s]", label2, label1))
     message(sprintf("  %-10s  %7s  %7s  %10s  %10s  %-23s  %7s",
@@ -1116,27 +1147,27 @@ population_rate_ratio <- function(pool,
     message(paste(rep("-", 80), collapse = ""))
     for (i in seq_len(nrow(df_res))) {
       r <- df_res[i, ]
-      rr_str <- fmt_rr(r$rr_2to1, r$ci_low_2to1, r$ci_high_2to1)
+      rr_str <- format_rate_ratio(r$rr_2to1, r$ci_low_2to1, r$ci_high_2to1)
       message(sprintf("  %-10s  %7d  %7d  %10.4f  %10.4f  %-23s  %7s",
                       r$bird_id, r$n_fg_2to1, r$n_bg_2to1, r$rate_fg_2to1, r$rate_bg_2to1,
-                      rr_str, fmt_p(r$p_val_2to1)))
+                      rr_str, format_p_value(r$p_val_2to1)))
     }
     message(paste(rep("-", 80), collapse = ""))
     message(sprintf("  Meta-analytic Pooled RR : %s (p %s)",
-                    fmt_rr(pool_2to1$rr, pool_2to1$ci_low, pool_2to1$ci_high),
-                    fmt_p(pool_2to1$p_value)))
+                    format_rate_ratio(pool_2to1$rr, pool_2to1$ci_low, pool_2to1$ci_high),
+                    format_p_value(pool_2to1$p_value)))
 
     message(sprintf("\n[Directional Contrast: %s->%s vs %s->%s]",
                     label1, label2, label2, label1))
     if (!is.null(pooled_diff_res)) {
       message(sprintf("  Pooled Ratio of RRs (RR_1to2 / RR_2to1) : %s (p %s)",
-                      fmt_rr(pooled_diff_res$ratio_of_rrs, pooled_diff_res$ci_low, pooled_diff_res$ci_high),
-                      fmt_p(pooled_diff_res$p_value)))
+                      format_rate_ratio(pooled_diff_res$ratio_of_rrs, pooled_diff_res$ci_low, pooled_diff_res$ci_high),
+                      format_p_value(pooled_diff_res$p_value)))
     }
     if (!is.null(directional_test)) {
       message(sprintf("  Unweighted Paired t-test on ln(RR)      : t = %.3f, df = %d, p %s",
                       directional_test$statistic, directional_test$parameter,
-                      fmt_p(directional_test$p.value)))
+                      format_p_value(directional_test$p.value)))
     }
     message("=========================================================================\n")
   }
@@ -1146,7 +1177,8 @@ population_rate_ratio <- function(pool,
     old_par <- graphics::par(mfrow = c(1, 2), mar = c(5, 6, 4, 2) + 0.1)
     on.exit(graphics::par(old_par), add = TRUE)
 
-    .draw_forest <- function(rrs, lows, highs, main_title, pooled_obj) {
+    # TODO: extract to standalone helper
+    draw_forest <- function(rrs, lows, highs, main_title, pooled_obj) {
       y_pos <- rev(seq_along(rrs))
       x_max <- max(c(highs, 3), na.rm = TRUE)
       x_max <- min(x_max, 15)
@@ -1179,9 +1211,9 @@ population_rate_ratio <- function(pool,
       }
     }
 
-    .draw_forest(df_res$rr_1to2, df_res$ci_low_1to2, df_res$ci_high_1to2,
+    draw_forest(df_res$rr_1to2, df_res$ci_low_1to2, df_res$ci_high_1to2,
                  sprintf("%s -> %s", label1, label2), pool_1to2)
-    .draw_forest(df_res$rr_2to1, df_res$ci_low_2to1, df_res$ci_high_2to1,
+    draw_forest(df_res$rr_2to1, df_res$ci_low_2to1, df_res$ci_high_2to1,
                  sprintf("%s -> %s", label2, label1), pool_2to1)
   }
 
@@ -1194,9 +1226,7 @@ population_rate_ratio <- function(pool,
 }
 
 
-# ---------------------------------------------------------------------------
-# population_peth()
-# ---------------------------------------------------------------------------
+# Population PETH ----
 
 #' Peri-Event Time Histogram (PETH) and Multi-Scale Triggering Analysis
 #'
@@ -1206,7 +1236,7 @@ population_rate_ratio <- function(pool,
 #' after each trigger event.
 #'
 #' A fixed wide window (such as 120 s) can dilute a sharp, short-latency triggering
-#' effect (e.g. a vocal response within 2–10 s) with baseline noise.
+#' effect (e.g. a vocal response within 2-10 s) with baseline noise.
 #' \code{population_peth()} solves this via two complementary analyses:
 #'
 #' \enumerate{
@@ -1448,8 +1478,6 @@ population_peth <- function(pool,
 
   df_sweep <- do.call(rbind, sweep_res)
 
-  fmt_p <- function(p) if (is.null(p) || is.na(p)) "NA" else if (p < 0.001) "< 0.001" else sprintf("= %.3f", p)
-
   if (verbose) {
     anchor_desc <- if (align_to == "dual") {
       "Dual (Pre-Onset vs Post-Offset)"
@@ -1472,7 +1500,7 @@ population_peth <- function(pool,
       message(sprintf("  %8.0f s  %12.4f  %12.4f  %12.2f  %7d/%-4d  %7s%s",
                       r$window_sec, r$mean_pre_rate, r$mean_post_rate,
                       r$mean_rate_ratio, r$n_birds_elevated, r$n_birds_tested,
-                      fmt_p(r$p_val_paired), tag))
+                      format_p_value(r$p_val_paired), tag))
     }
     message(paste(rep("-", 75), collapse = ""))
     message("  * Significant elevation (paired t-test, post > pre-onset, p < 0.05)")
@@ -1568,9 +1596,7 @@ population_peth <- function(pool,
 }
 
 
-# ---------------------------------------------------------------------------
-# population_point_process_glm()
-# ---------------------------------------------------------------------------
+# Population Point-Process GLM ----
 
 #' Point-Process GLM for Disentangling Triggering vs. Refractory Suppression
 #'
@@ -1779,9 +1805,6 @@ population_point_process_glm <- function(pool,
   )
   rownames(df_coefs) <- NULL
 
-  fmt_p  <- function(p) if (is.null(p) || is.na(p)) "NA" else if (p < 0.001) "< 0.001" else sprintf("= %.3f", p)
-  fmt_or <- function(r, lo, hi) sprintf("%.2fx [%.2f, %.2f]", r, lo, hi)
-
   if (verbose) {
     message(sprintf(
       "\n=========================================================================\nPoint-Process GLM: Predicting %s Probability (N = %d animals)\n=========================================================================",
@@ -1811,8 +1834,8 @@ population_point_process_glm <- function(pool,
 
       message(sprintf("  %-35s  %+10.3f  %10.3f  %-24s  %8s%s",
                       term_clean, r$estimate, r$std_error,
-                      fmt_or(r$odds_ratio, r$ci_lower, r$ci_upper),
-                      fmt_p(r$p_value), tag))
+                      format_odds_ratio(r$odds_ratio, r$ci_lower, r$ci_upper),
+                      format_p_value(r$p_value), tag))
     }
     message(paste(rep("-", 95), collapse = ""))
     message("  * Odds Ratio > 1.0 indicates that begging increases song probability above distant baseline,")
@@ -1839,7 +1862,8 @@ population_point_process_glm <- function(pool,
     old_par  <- graphics::par(mfrow = c(1, n_panels), mar = c(5, 5, 4, 2) + 0.1)
     on.exit(graphics::par(old_par), add = TRUE)
 
-    .get_stat_labels <- function(pvals, ors) {
+    # TODO: extract to standalone helper
+    get_stat_labels <- function(pvals, ors) {
       if (label_stat == "significance") {
         ifelse(pvals < 0.001, "***",
         ifelse(pvals < 0.01, "**",
@@ -1882,7 +1906,7 @@ population_point_process_glm <- function(pool,
         }
       }
 
-      labels_vec <- .get_stat_labels(pval_p, y_p)
+      labels_vec <- get_stat_labels(pval_p, y_p)
       sig_mask   <- labels_vec != ""
       if (any(sig_mask)) {
         graphics::text(
@@ -1922,7 +1946,7 @@ population_point_process_glm <- function(pool,
         }
       }
 
-      labels_vec_self <- .get_stat_labels(pval_s, y_s)
+      labels_vec_self <- get_stat_labels(pval_s, y_s)
       sig_mask_self   <- labels_vec_self != ""
       if (any(sig_mask_self)) {
         graphics::text(
@@ -1941,9 +1965,7 @@ population_point_process_glm <- function(pool,
 }
 
 
-# ---------------------------------------------------------------------------
-# population_shuffled_peth()
-# ---------------------------------------------------------------------------
+# Population Shuffled PETH ----
 
 #' Shuffled Surrogate PETH for Testing Pointwise Time-Window Significance
 #'
@@ -2058,7 +2080,8 @@ population_shuffled_peth <- function(pool,
   n_bins    <- length(bin_mids)
 
   # Helper to compute per-bird PETH matrix (birds x bins)
-  .compute_bird_peth_matrix <- function(df) {
+  # TODO: extract to standalone helper
+  compute_bird_peth_matrix <- function(df) {
     peth_mat <- matrix(NA_real_, nrow = length(birds), ncol = n_bins,
                        dimnames = list(birds, sprintf("%.1f", bin_mids)))
     for (bi in seq_along(birds)) {
@@ -2111,7 +2134,7 @@ population_shuffled_peth <- function(pool,
     peth_mat
   }
 
-  real_bird_mat <- .compute_bird_peth_matrix(pool)
+  real_bird_mat <- compute_bird_peth_matrix(pool)
   real_peth     <- colMeans(real_bird_mat, na.rm = TRUE)
 
   if (verbose) {
@@ -2157,7 +2180,7 @@ population_shuffled_peth <- function(pool,
 
         shuff_pool[[start_col]][idx] <- shifted_starts
       }
-      shuff_mat[perm_i, ] <- colMeans(.compute_bird_peth_matrix(shuff_pool), na.rm = TRUE)
+      shuff_mat[perm_i, ] <- colMeans(compute_bird_peth_matrix(shuff_pool), na.rm = TRUE)
     }
   }
 
@@ -2195,6 +2218,7 @@ population_shuffled_peth <- function(pool,
   )
 
   # Group contiguous significant intervals
+  # TODO: extract to standalone helper
   find_contiguous <- function(flags, label) {
     if (!any(flags)) return(data.frame())
     rle_res <- rle(flags)
@@ -2226,8 +2250,6 @@ population_shuffled_peth <- function(pool,
   df_sig  <- do.call(rbind, c(sig_fac, sig_sup))
   if (!is.null(df_sig)) rownames(df_sig) <- NULL
 
-  fmt_p <- function(p) if (is.null(p) || is.na(p)) "NA" else if (p < 0.001) "< 0.001" else sprintf("= %.3f", p)
-
   if (verbose) {
     message(sprintf(
       "\n=========================================================================\nShuffled Surrogate PETH Results: %s -> %s\n=========================================================================",
@@ -2243,7 +2265,7 @@ population_shuffled_peth <- function(pool,
         message(sprintf("  %-28s  %+10.1f  %+10.1f  %12.4f  %12.4f  %8s  %8s",
                         r$effect_type, r$window_start, r$window_end,
                         r$mean_real_rate, r$mean_null_rate,
-                        fmt_p(r$min_p_value), fmt_p(r$min_q_fdr)))
+                        format_p_value(r$min_p_value), format_p_value(r$min_q_fdr)))
       }
       message(paste(rep("-", 95), collapse = ""))
     } else {
