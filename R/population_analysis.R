@@ -1250,7 +1250,7 @@ population_rate_ratio <- function(pool,
 #'     sizes (e.g. 5, 10, 20, 30, 60, 120 s).  If true triggering occurs,
 #'     the rate ratio will peak sharply at short timescales.
 #'   \item \strong{Local Pre vs. Post Statistical Contrast}:
-#'     Compares response rate in $[0, +W]$ directly to $[-W, 0]$ for each
+#'     Compares response rate in \eqn{[0, +W]} directly to \eqn{[-W, 0]} for each
 #'     animal, controlling for non-stationary baseline activity.
 #' }
 #'
