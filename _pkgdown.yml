@@ -42,6 +42,7 @@ reference:
     contents:
       - create_lys_object
       - get_wav_indices
+      - remove_wav_files
       - update_lys_paths
 
   - title: "Audio Visualization & Snippet Export"
@@ -66,6 +67,21 @@ reference:
     contents:
       - label_vocalization
       - annotate_vocalizations
+
+  - title: "Motif Extraction & Segment Visualization"
+    desc: "Functions for extracting fixed-window motifs and visualizing segments"
+    contents:
+      - find_motif
+      - visualize_segments
+
+  - title: "Vocalization Trajectory & Dimensionality Reduction"
+    desc: "Functions for trajectory matrix construction, PCA, and condition separation"
+    contents:
+      - create_trajectory_matrix
+      - run_pca
+      - trajectory_timecourse
+      - trajectory_separation
+      - plot_trajectory_discrimination
 
   - title: "Exporting & Mapping"
     desc: "Functions for exporting clipped events and mapping session timelines"
